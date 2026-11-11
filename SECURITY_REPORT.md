@@ -238,3 +238,28 @@ The upstream code is retained with its original GPL-3.0 license and attribution.
 
 
 - Setup API mutation requests now require a non-empty, non-`null` trusted `Origin`; only top-level GET navigation may omit Origin. Regression tests cover trusted Chrome/Firefox origins, hostile/missing/null origins, install-path containment, symlink components, and symlink manifest rejection. This is defense in depth alongside the session token, exact Host check, and loopback peer check; browser runtime compatibility and Windows junction/reparse-point validation remain outstanding.
+
+## Security hardening execution update — 2026-11-11
+
+### Implemented in the current native-client hardening branch
+- Windows installation path checks now inspect FILE_ATTRIBUTE_REPARSE_POINT on every existing directory component. Junctions, symbolic links, and other reparse-point redirections are rejected. A Windows junction regression test is included.
+- Setup installation paths must exactly match the server-derived path for the selected browser and current platform; being merely somewhere under the home directory is no longer sufficient.
+- Manifest and embedded-asset destinations reject reparse points as well as symbolic links.
+- Setup API requests enforce exact Host, loopback peer, trusted Origin, GET/POST-only methods, URL-encoded POST content, a 16 KiB request cap, and no-store/security response headers. The setup page has a restrictive CSP.
+- Added setup request-guard tests for hostile Origin, missing Origin, invalid Host, non-loopback peers, invalid content types, oversized bodies, and unsupported methods.
+- Updater staging names now include a cryptographically random token and retain the .exe suffix on Windows.
+- Added updater download tests for a valid digest, tampered payloads, oversized payloads, and non-200 responses.
+- Private logging rejects pre-existing symlinked directories and log targets and checks that the opened file still matches the path. This reduces common symlink attacks but is not a complete race-free platform-specific file-opening or Windows ACL implementation.
+- CI now has setup tests/compile checks on Ubuntu, Windows, and macOS using a CI-only embedded-asset stub; it also schedules govulncheck for the helper, native-client, and setup modules.
+
+### Explicitly not complete / requires real platform validation
+- The CI-only setup stub does not replace the production go-bindata asset generation step. A production setup installer has not yet been reproducibly built.
+- Windows junction/reparse-point detection is implemented but has not yet passed Windows CI; junction creation may be skipped by the test runner if unavailable.
+- NewPrivateLogger still needs a verified Windows DACL implementation. Unix-style Chmod(0700/0600) does not prove Windows ACL privacy.
+- Symlink/reparse checks are check-then-use defenses and do not fully eliminate filesystem TOCTOU races. A handle-relative, no-follow file operation strategy is still needed for a strong guarantee.
+- The pinned RobotGo TypeStr and MouseClick methods do not expose operation status. Normal return cannot confirm OS-level input delivery. A cross-platform replacement backend has not been implemented.
+- Browser-based setup compatibility, native messaging end-to-end behavior, real OS input delivery, installer replacement/rollback, and adversarial runtime testing remain unverified.
+- Extension CSP destination inventory, Firefox MV2 resource exposure, and credential-storage review from PR #1 remain open.
+- GitHub Actions runs have remained queued at inspection time. No new test, vet, vulnerability scan, or platform build is claimed as passing.
+
+**Release status: NOT production-ready.** Keep both hardening pull requests in draft until the outstanding platform, runtime, dependency, and packaging validations are complete.
