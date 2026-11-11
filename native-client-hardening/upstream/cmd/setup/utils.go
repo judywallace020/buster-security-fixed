@@ -74,6 +74,17 @@ func newToken() (string, error) {
 }
 
 func restoreAsset(path, name string) error {
+	if err := ensureNoSymlinkComponents(filepath.Dir(path)); err != nil {
+		return err
+	}
+	if info, err := os.Lstat(path); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			return errors.New("asset destination must be a regular non-symlink file")
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
 	data, err := Asset(name)
 	if err != nil {
 		return err
