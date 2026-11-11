@@ -5,7 +5,6 @@ import (
 	"os"
 	"io/ioutil"
 	"path/filepath"
-	"runtime"
 	"regexp"
 	"strings"
 
