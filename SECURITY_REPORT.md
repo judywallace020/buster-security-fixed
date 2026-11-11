@@ -228,3 +228,6 @@ A source snapshot of upstream `dessant/buster-client` was added under `native-cl
 - The helper module and source snapshot are not a production installer. Do not treat this as a fully security-fixed or release-ready native client.
 
 The upstream code is retained with its original GPL-3.0 license and attribution. The source snapshot should be periodically compared against the upstream repository before any release.
+
+
+**Upstream source provenance:** the native-client snapshot under `native-client-hardening/upstream/` was copied from `dessant/buster-client` branch `master`, commit `d4a7880c8eb5196110052d0bdad8c8dd003a8ad8`.
