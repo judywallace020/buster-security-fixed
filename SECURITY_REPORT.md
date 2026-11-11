@@ -184,3 +184,15 @@ The inspected Go modules declare Go 1.13 and pin older dependencies, including R
 - Not run: Go tests, `go vet`, `govulncheck`, static analyzers, cross-platform builds, native-messaging integration tests, CSRF/path-traversal tests, or updater tampering tests.
 
 **Important:** These are review findings and remediation recommendations, not proof of remote code execution or a confirmed exploit. The native client has not been modified by this audit. The extension hardening branch does not contain a hardened/rebuilt native-client binary; native-client remediation and end-to-end compatibility testing remain separate work.
+
+
+## Native-client hardening helper implementation — branch `security/native-client-hardening`
+
+A separate branch now contains an initial helper package under `native-client-hardening/security/`:
+
+- `DownloadVerified` requires a trusted SHA-256 digest, limits downloads to 100 MiB by default, requires HTTPS GitHub release URLs, restricts redirect hosts, streams to a temporary file, verifies the digest, and refuses to overwrite an existing destination. The caller must stage to a new path and perform the platform-specific replacement only after verification.
+- `NewSessionToken` creates a 256-bit cryptographically random token and provides constant-time comparison/format validation helpers.
+- `NewPrivateLogger` writes under the current user's cache directory, applies restrictive directory/file modes, and rejects non-regular log targets.
+- Basic unit tests cover token validation, rejection of untrusted updater URLs, missing digest rejection, and private logger file creation.
+
+**Integration status:** these helpers are a standalone module and are not yet wired into the upstream `cmd/client` or `cmd/setup` programs. The original updater, setup request handling, and sensitive command logging therefore remain unchanged in the native client itself. No Go test or cross-platform build has been run yet. The helper package is not a replacement native-client binary and must not be distributed as a fixed client.
