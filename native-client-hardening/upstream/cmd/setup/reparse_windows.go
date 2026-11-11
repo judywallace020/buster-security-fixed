@@ -3,9 +3,7 @@
 
 package main
 
-import (
-	"syscall"
-)
+import "syscall"
 
 // FILE_ATTRIBUTE_REPARSE_POINT covers junctions, symbolic links, and other
 // filesystem redirections. Rejecting all reparse points is intentionally
