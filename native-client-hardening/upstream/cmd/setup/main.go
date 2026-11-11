@@ -352,9 +352,15 @@ func installHandler(res http.ResponseWriter, req *http.Request) {
 				writeError(res, errors.New("unsupported browser installation location"))
 				return
 			}
-			if !sameExpectedPath(appDir, expectedLocation["appDir"]) ||
-				!sameExpectedPath(manifestDir, expectedLocation["manifestDir"]) {
-				writeError(res, errors.New("install paths do not match the current user's browser locations"))
+			currentUser, err := user.Current()
+			if err != nil {
+				writeError(res, errors.New("cannot determine current user home directory"))
+				return
+			}
+			if !isWithinBase(appDir, currentUser.HomeDir) ||
+				(runtime.GOOS == "windows" && manifestDir != "") ||
+				(runtime.GOOS != "windows" && !isWithinBase(manifestDir, currentUser.HomeDir)) {
+				writeError(res, errors.New("install paths must remain within the current user's home directory"))
 				return
 			}
 			if err := ensureNoSymlinkComponents(appDir); err != nil {
