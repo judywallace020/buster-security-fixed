@@ -5,26 +5,26 @@ import (
 	"buster-client/pkg/input/mouse"
 )
 
-func MoveMouse(x, y int) {
-	mouse.MoveMouse(x, y)
+func MoveMouse(x, y int) error {
+	return mouse.MoveMouse(x, y)
 }
 
-func ClickMouse() {
-	mouse.ClickMouse()
+func ClickMouse() error {
+	return mouse.ClickMouse()
 }
 
-func TypeText(text string) {
-	keyboard.TypeText(text)
+func TypeText(text string) error {
+	return keyboard.TypeText(text)
 }
 
-func PressKey(key string) {
-	keyboard.PressKey(key)
+func PressKey(key string) error {
+	return keyboard.PressKey(key)
 }
 
-func ReleaseKey(key string) {
-	keyboard.ReleaseKey(key)
+func ReleaseKey(key string) error {
+	return keyboard.ReleaseKey(key)
 }
 
-func TapKey(key string) {
-	keyboard.TapKey(key)
+func TapKey(key string) error {
+	return keyboard.TapKey(key)
 }
