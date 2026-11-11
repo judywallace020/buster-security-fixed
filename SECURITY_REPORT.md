@@ -120,3 +120,67 @@ The background service worker now:
 ## Attribution
 
 Buster is originally developed by [dessant](https://github.com/dessant). This repository is a derivative review workspace. Preserve upstream notices and comply with GPL-3.0 when distributing modified copies.
+
+
+## Native client audit — upstream `dessant/buster-client`
+
+**Reviewed repository:** https://github.com/dessant/buster-client  
+**Reviewed branch:** `master`  
+**Review type:** static source inspection of the Go native-messaging client, setup server, input simulation packages, and module manifests. The upstream repository reports its last push as 2022-12-15. No executable was built or run and no issue below has been validated by dynamic testing.
+
+### N1. Unverified updater download and execution — high priority
+
+In `cmd/client/utils.go`, `downloadFile` performs an HTTP GET, does not check the response status, and copies the response body directly to a file opened with mode `0755`. In `cmd/client/main.go`, the downloaded setup executable is then run with `--update`.
+
+The URL is HTTPS and points to a GitHub release, which is useful transport protection, but the updater does not verify a published checksum, signature, or trusted release manifest before execution. An HTTP error body or compromised release asset path can also be written as an executable because the status is not checked.
+
+**Recommended fix:** require a 2xx response; reject unexpected redirects/hosts; cap download size; write to a safely created temporary file; verify a pinned publisher signature or a checksum obtained through a separately authenticated release manifest; fsync/close; then atomically replace the target. Never execute an unverified download.
+
+### N2. Setup API accepts caller-supplied filesystem paths and extension identifiers — high priority
+
+In `cmd/setup/main.go`, the authenticated `/api/v1/setup/install` handler reads `appDir`, `manifestDir`, `browser`, `targetEnv`, and `extension` directly from form values and passes them to `install`. The install path subsequently creates directories, writes a native-messaging manifest, restores an executable, and on Windows writes a registry value. The code shown does not constrain these paths to the expected per-user application/manifest directories or validate the extension identifier against a known format/allowlist.
+
+The random session token is a useful mitigation, but it does not replace path validation and request-origin protections. The practical exploitability of a hostile local web page depends on browser protections, token/port discovery, and the setup page lifecycle; this has not been tested.
+
+**Recommended fix:** derive install paths server-side from the selected supported browser and current user; never accept arbitrary absolute paths from HTTP form fields; validate browser/target combinations and extension IDs; enforce path containment after canonicalization; reject symlinks where relevant; and validate the request Origin/Host against the expected local setup origin. Add CSRF-resistant request handling and tests for traversal, symlink, malformed IDs, and unexpected origins.
+
+### N3. Sensitive input data is written to a predictable shared-temp log — high priority
+
+The native client logs every command and logs the complete `Data` value for key and text commands in `cmd/client/main.go`. `InitLogger` in `lib/utils/utils.go` writes to a fixed filename under the system temp directory using `O_CREATE|O_TRUNC|O_WRONLY` and mode `0666`. This can disclose text typed through the native helper and creates a predictable-file/symlink concern in shared temporary directories.
+
+**Recommended fix:** do not log typed text, key values, tokens, or other user content; use structured redacted diagnostics; create per-user log directories with restrictive permissions (for example, 0700 directory and 0600 file on Unix); use exclusive creation or safe platform-specific temp-file APIs; and implement rotation/retention controls.
+
+### N4. Setup session token generation ignores errors — medium priority
+
+`newToken` in `cmd/setup/utils.go` discards the error from `uuid.NewV4()`. If secure random generation fails, the setup server may continue with an empty/invalid token rather than failing closed.
+
+**Recommended fix:** return an error from token generation and abort setup startup if secure token creation fails. Use a cryptographically secure token with sufficient entropy and compare secrets using a constant-time comparison where applicable.
+
+### N5. Local setup server does not visibly enforce Origin/Host policy — medium priority
+
+The setup server listens on loopback with an ephemeral port and uses a session token, but the inspected handlers authorize requests only by comparing a form/query session value. No explicit Origin or Host validation is visible in the handlers.
+
+**Recommended fix:** enforce exact expected local origin/host and content type, reject cross-origin requests, use strict method/path handling, and add browser-based CSRF tests. Treat the session token as defense in depth, not the sole trust boundary.
+
+### N6. Native input command execution lacks result/error propagation — medium priority
+
+The client dispatches keyboard and mouse actions through `robotgo`. The wrapper functions in `pkg/input` and their keyboard/mouse implementations do not return execution errors to the native-messaging response. This weakens observability and makes it difficult for the extension to distinguish successful input simulation from failed or unsupported operations.
+
+**Recommended fix:** propagate errors through every input wrapper, validate key names and text lengths again inside the native client (not only in the extension), and return explicit failure responses. Keep mouse coordinates bounded and test multi-monitor/negative-coordinate behavior.
+
+### N7. Old Go toolchain/dependency baseline — medium priority
+
+The inspected Go modules declare Go 1.13 and pin older dependencies, including RobotGo and related input/system packages from 2020. This is a maintenance and supply-chain risk, but the source inspection alone does not establish a known exploitable CVE.
+
+**Recommended fix:** inventory modules with `go list -m all` and `govulncheck`; update dependencies in controlled steps; build on supported Go toolchains for each target OS/architecture; and add automated dependency scanning to CI.
+
+### Native-client audit validation status
+
+- Inspected the native messaging command loop, updater download path, setup HTTP handlers, install/update routines, log initialization, keyboard/mouse wrappers, Go module manifests, and build Makefile.
+- Confirmed the updater does not check HTTP status or verify a signature/checksum in the inspected code.
+- Confirmed setup install parameters are accepted from request form values and passed into filesystem/manifest installation logic.
+- Confirmed key/text command data is logged and the log path is a fixed filename in the system temp directory.
+- Confirmed UUID generation errors are ignored.
+- Not run: Go tests, `go vet`, `govulncheck`, static analyzers, cross-platform builds, native-messaging integration tests, CSRF/path-traversal tests, or updater tampering tests.
+
+**Important:** These are review findings and remediation recommendations, not proof of remote code execution or a confirmed exploit. The native client has not been modified by this audit. The extension hardening branch does not contain a hardened/rebuilt native-client binary; native-client remediation and end-to-end compatibility testing remain separate work.
