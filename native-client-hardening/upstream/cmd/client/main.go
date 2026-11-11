@@ -149,17 +149,17 @@ func processMessage(msg *message, rsp *response) error {
 
 	switch msg.Command {
 	case "pressKey":
-		input.PressKey(msg.Data)
+		return input.PressKey(msg.Data)
 	case "releaseKey":
-		input.ReleaseKey(msg.Data)
+		return input.ReleaseKey(msg.Data)
 	case "tapKey":
-		input.TapKey(msg.Data)
+		return input.TapKey(msg.Data)
 	case "typeText":
-		input.TypeText(msg.Data)
+		return input.TypeText(msg.Data)
 	case "moveMouse":
-		input.MoveMouse(msg.X, msg.Y)
+		return input.MoveMouse(msg.X, msg.Y)
 	case "clickMouse":
-		input.ClickMouse()
+		return input.ClickMouse()
 	case "ping":
 		rsp.Data = "pong"
 	}
