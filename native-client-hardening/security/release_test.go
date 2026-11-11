@@ -2,7 +2,7 @@ package security
 
 import (
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -21,7 +21,7 @@ func metadataClient(status int, body string) *http.Client {
 			StatusCode: status,
 			Status:     http.StatusText(status),
 			Header:     make(http.Header),
-			Body:       ioutil.NopCloser(strings.NewReader(body)),
+			Body:       io.NopCloser(strings.NewReader(body)),
 			Request:    r,
 		}, nil
 	})}
