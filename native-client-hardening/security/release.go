@@ -90,7 +90,7 @@ func ReleaseAssetSHA256(client *http.Client, version, assetName string) (string,
 			return "", "", errors.New("release asset SHA-256 digest is invalid")
 		}
 		u, err := url.Parse(asset.BrowserDownloadURL)
-		if err != nil || u.Scheme != "https" || u.Hostname() != "github.com" || u.Port() != "" || u.User != nil {
+		if err != nil || u.Scheme != "https" || u.Hostname() != "github.com" || u.Port() != "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 			return "", "", errors.New("release asset URL is not a trusted GitHub URL")
 		}
 		if !strings.HasPrefix(u.Path, "/dessant/buster-client/releases/download/v"+version+"/") {
@@ -107,7 +107,7 @@ func NewGitHubMetadataClient() *http.Client {
 	return &http.Client{
 		Timeout: 20 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) >= 3 || req.URL.Scheme != "https" || req.URL.Hostname() != "api.github.com" || req.URL.Port() != "" {
+			if len(via) >= 3 || req.URL.Scheme != "https" || req.URL.Hostname() != "api.github.com" || req.URL.Port() != "" || req.URL.User != nil {
 				return errors.New("refusing untrusted GitHub metadata redirect")
 			}
 			return nil
