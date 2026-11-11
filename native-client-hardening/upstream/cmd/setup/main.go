@@ -18,6 +18,8 @@ import (
 
 	"github.com/dessant/open-golang/open"
 
+	"buster-client-hardening/security"
+
 	"buster-client/utils"
 )
 
@@ -80,7 +82,7 @@ type manifest struct {
 }
 
 func isValidSession(key string) bool {
-	return key == session
+	return security.SessionTokenEqual(session, key)
 }
 
 func getLocation(browser, targetEnv string) (map[string]string, error) {
@@ -368,7 +370,13 @@ func exit() {
 }
 
 func main() {
-	utils.InitLogger("buster-client-setup-log.txt")
+	_, logFile, logErr := security.NewPrivateLogger("buster-client-setup-log.txt")
+	if logErr != nil {
+		return
+	}
+	defer logFile.Close()
+	log.SetOutput(logFile)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.LUTC)
 	log.Printf("Starting setup (version: %s)", buildVersion)
 
 	go func() {
@@ -414,7 +422,12 @@ func main() {
 		return
 	}
 
-	session = newToken()
+	session, err = newToken()
+	if err != nil {
+		log.Printf("Cannot create setup session token: %v", err)
+		listener.Close()
+		return
+	}
 	url := fmt.Sprintf("http://%s/buster/setup?session=%s", listener.Addr(), session)
 	go open.Start(url)
 
