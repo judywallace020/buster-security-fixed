@@ -154,6 +154,9 @@ func getLocation(browser, targetEnv string) (map[string]string, error) {
 	} else if runtime.GOOS == "windows" {
 		localAppDataDir := os.Getenv("LOCALAPPDATA")
 
+		if localAppDataDir == "" {
+			return nil, errors.New("cannot determine current user application directory")
+		}
 		location["appDir"] = filepath.Join(localAppDataDir, "buster")
 	}
 
@@ -335,6 +338,10 @@ func installHandler(res http.ResponseWriter, req *http.Request) {
 			expectedLocation, err := getLocation(browser, targetEnv)
 			if err != nil {
 				writeError(res, err)
+				return
+			}
+			if expectedLocation["appDir"] == "" || (runtime.GOOS != "windows" && expectedLocation["manifestDir"] == "") {
+				writeError(res, errors.New("unsupported browser installation location"))
 				return
 			}
 			if !sameExpectedPath(appDir, expectedLocation["appDir"]) ||
