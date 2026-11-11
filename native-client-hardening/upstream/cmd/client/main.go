@@ -10,10 +10,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strings"
-	"unicode/utf8"
 	"runtime"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/dessant/nativemessaging"
 
@@ -90,11 +90,9 @@ func installClient(version string) error {
 		return errors.New("cannot run verified setup")
 	}
 
-	errMessage := string(setupOutput)
-	if errMessage != "" {
-		return errors.New(errMessage)
+	if output := string(setupOutput); output != "" {
+		return errors.New(output)
 	}
-
 	return nil
 }
 
@@ -104,125 +102,14 @@ func installCleanup() error {
 		log.Println(err)
 		return errors.New("cannot get executable path")
 	}
-
-	os.Remove(execPath + ".old")
-
+	if err := os.Remove(execPath + ".old"); err != nil && !os.IsNotExist(err) {
+		log.Printf("Cleanup failed: %v", err)
+		return errors.New("cannot remove previous client executable")
+	}
 	return nil
 }
 
-var inputKeyPattern = regexp.MustCompile(`^[A-Za-z0-9_+.-]{1,64}package main
-
-import (
-	"context"
-	"errors"
-	"fmt"
-	"io"
-	"log"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"regexp"
-	"strings"
-	"unicode/utf8"
-	"runtime"
-	"time"
-
-	"github.com/dessant/nativemessaging"
-
-	"buster-client-hardening/security"
-	"buster-client/pkg/input"
-	"buster-client/utils"
-)
-
-var buildVersion string
-
-type message struct {
-	MessageID  string `json:"id"`
-	APIVersion string `json:"apiVersion"`
-	Command    string `json:"command"`
-	Data       string `json:"data"`
-	X          int    `json:"x"`
-	Y          int    `json:"y"`
-}
-
-type response struct {
-	MessageID  string `json:"id"`
-	APIVersion string `json:"apiVersion"`
-	Success    bool   `json:"success"`
-	Data       string `json:"data"`
-}
-
-func installClient(version string) error {
-	if runtime.GOOS != "windows" {
-		admin, err := utils.UserAdmin()
-		if err != nil {
-			log.Println(err)
-			return errors.New("cannot inspect current user")
-		}
-		if admin {
-			return errors.New("setup must be run without administrative rights")
-		}
-	}
-
-	goos := runtime.GOOS
-	if goos == "darwin" {
-		goos = "macos"
-	}
-	assetName := fmt.Sprintf("buster-client-setup-v%s-%s-%s", version, goos, runtime.GOARCH)
-	if goos == "windows" {
-		assetName += ".exe"
-	}
-
-	execPath, err := os.Executable()
-	if err != nil {
-		log.Println(err)
-		return errors.New("cannot get executable path")
-	}
-	setupPath := filepath.Join(filepath.Dir(execPath), utils.GetExecName("buster-client-setup"))
-	stagedPath := setupPath + ".verified"
-
-	metadataClient := security.NewGitHubMetadataClient()
-	assetURL, digest, err := security.ReleaseAssetSHA256(metadataClient, version, assetName)
-	if err != nil {
-		log.Printf("Updater metadata validation failed: %v", err)
-		return errors.New("cannot verify update release metadata")
-	}
-
-	downloadCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-	if err := security.DownloadVerified(downloadCtx, security.NewReleaseHTTPClient(), assetURL, digest, stagedPath, security.DefaultMaxDownloadBytes); err != nil {
-		log.Printf("Verified updater download failed: %v", err)
-		return errors.New("cannot download and verify setup")
-	}
-	defer os.Remove(stagedPath)
-
-	setupOutput, err := exec.Command(stagedPath, "--update").CombinedOutput()
-	if err != nil {
-		log.Printf("Verified setup execution failed: %v", err)
-		return errors.New("cannot run verified setup")
-	}
-
-	errMessage := string(setupOutput)
-	if errMessage != "" {
-		return errors.New(errMessage)
-	}
-
-	return nil
-}
-
-func installCleanup() error {
-	execPath, err := os.Executable()
-	if err != nil {
-		log.Println(err)
-		return errors.New("cannot get executable path")
-	}
-
-	os.Remove(execPath + ".old")
-
-	return nil
-}
-
-)
+var inputKeyPattern = regexp.MustCompile(`^[A-Za-z0-9_+.-]{1,64}$`)
 
 const maxNativeTextBytes = 4096
 const maxNativeCoordinate = 32767
@@ -259,25 +146,22 @@ func processMessage(msg *message, rsp *response) error {
 	}
 	log.Printf("Command: %s", msg.Command)
 
-	if msg.Command == "pressKey" {
+	switch msg.Command {
+	case "pressKey":
 		input.PressKey(msg.Data)
-	} else if msg.Command == "releaseKey" {
+	case "releaseKey":
 		input.ReleaseKey(msg.Data)
-	} else if msg.Command == "tapKey" {
+	case "tapKey":
 		input.TapKey(msg.Data)
-	} else if msg.Command == "typeText" {
+	case "typeText":
 		input.TypeText(msg.Data)
-	} else if msg.Command == "moveMouse" {
-		log.Printf("X: %d, Y: %d", msg.X, msg.Y)
+	case "moveMouse":
 		input.MoveMouse(msg.X, msg.Y)
-	} else if msg.Command == "clickMouse" {
+	case "clickMouse":
 		input.ClickMouse()
-	} else if msg.Command == "ping" {
+	case "ping":
 		rsp.Data = "pong"
-	} else {
-		return errors.New("unknown command")
 	}
-
 	return nil
 }
 
@@ -302,10 +186,8 @@ func main() {
 
 	for {
 		log.Println("Receiving message")
-
 		var msg message
 		var rsp response
-
 		if err := decoder.Decode(&msg); err != nil {
 			if err == io.EOF {
 				log.Println("Closing client")
@@ -318,38 +200,33 @@ func main() {
 		rsp.MessageID = msg.MessageID
 		rsp.APIVersion = buildVersion
 
-		if msg.Command == "installClient" {
+		switch msg.Command {
+		case "installClient":
 			log.Printf("Installing client (version: %s)", msg.Data)
-			err := installClient(msg.Data)
-			if err == nil {
-				rsp.Success = true
-			} else {
+			if err := installClient(msg.Data); err != nil {
 				rsp.Data = err.Error()
+			} else {
+				rsp.Success = true
 			}
-		} else if msg.Command == "installCleanup" {
+		case "installCleanup":
 			log.Println("Cleaning up after installation")
-			err := installCleanup()
-			if err == nil {
-				rsp.Success = true
-			} else {
+			if err := installCleanup(); err != nil {
 				rsp.Data = err.Error()
-			}
-		} else {
-			if msg.APIVersion == buildVersion {
-				log.Println("Processing message")
-				err := processMessage(&msg, &rsp)
-				if err == nil {
-					rsp.Success = true
-				} else {
-					rsp.Data = err.Error()
-				}
 			} else {
+				rsp.Success = true
+			}
+		default:
+			if msg.APIVersion != buildVersion {
 				log.Printf("Unsupported client version (requested: %s, supported: %s)", msg.APIVersion, buildVersion)
+				rsp.Data = "unsupported client version"
+			} else if err := processMessage(&msg, &rsp); err != nil {
+				rsp.Data = err.Error()
+			} else {
+				rsp.Success = true
 			}
 		}
 
 		log.Println("Sending response")
-
 		if err := encoder.Encode(rsp); err != nil {
 			log.Println(err)
 			return
