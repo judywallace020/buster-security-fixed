@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -50,7 +51,7 @@ func downloadTestClient(status int, payload string) *http.Client {
 			StatusCode: status,
 			Status:     http.StatusText(status),
 			Header:     make(http.Header),
-			Body:       ioutil.NopCloser(strings.NewReader(payload)),
+			Body:       io.NopCloser(strings.NewReader(payload)),
 			ContentLength: int64(len(payload)),
 			Request:    r,
 		}, nil
