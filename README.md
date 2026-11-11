@@ -13,6 +13,7 @@ This repository contains a reviewed working copy of [dessant/buster](https://git
 - Added [SECURITY_REPORT.md](SECURITY_REPORT.md) with the preliminary review, remediation notes, and remaining risks.
 - Replaced broad `<all_urls>` host permissions with an explicit host allowlist across Chrome, Edge, Opera, and Firefox manifests.
 - Scoped Manifest V3 web-accessible resources to the local setup origin and reCAPTCHA origins.
+- Added background sender checks, reCAPTCHA-origin validation, a 10 MiB streamed audio-response limit, media-type/redirect checks, and native-client command validation.
 
 ## Important limitations
 
