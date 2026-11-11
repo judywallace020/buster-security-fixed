@@ -107,7 +107,7 @@ func restoreAsset(path, name string) error {
 var chromeExtensionOriginPattern = regexp.MustCompile("^chrome-extension://[a-p]{32}/$")
 var firefoxExtensionIDPattern = regexp.MustCompile("^[A-Za-z0-9._@{}+-]{1,128}$")
 var chromeOriginPattern = regexp.MustCompile("^chrome-extension://[a-p]{32}$")
-var firefoxOriginPattern = regexp.MustCompile("^moz-extension://(\\\\{)?[0-9a-fA-F-]{36}(\\\\})?$")
+var firefoxOriginPattern = regexp.MustCompile("^moz-extension://(\\{)?[0-9a-fA-F-]{36}(\\})?$")
 
 func validBrowserTarget(browser, targetEnv string) bool {
 	validBrowser := map[string]bool{
