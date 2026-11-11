@@ -4,7 +4,7 @@ go 1.13
 
 replace buster-client/utils => ../../lib/utils
 
-replace buster-client-hardening/security => ../../security
+replace buster-client-hardening/security => ../../../security
 
 require (
 	buster-client-hardening/security v0.0.0
