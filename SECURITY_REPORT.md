@@ -184,3 +184,82 @@ The inspected Go modules declare Go 1.13 and pin older dependencies, including R
 - Not run: Go tests, `go vet`, `govulncheck`, static analyzers, cross-platform builds, native-messaging integration tests, CSRF/path-traversal tests, or updater tampering tests.
 
 **Important:** These are review findings and remediation recommendations, not proof of remote code execution or a confirmed exploit. The native client has not been modified by this audit. The extension hardening branch does not contain a hardened/rebuilt native-client binary; native-client remediation and end-to-end compatibility testing remain separate work.
+
+
+## Native-client hardening helper implementation — branch `security/native-client-hardening`
+
+A separate branch now contains an initial helper package under `native-client-hardening/security/`:
+
+- `DownloadVerified` requires a trusted SHA-256 digest, limits downloads to 100 MiB by default, requires HTTPS GitHub release URLs, restricts redirect hosts, streams to a temporary file, verifies the digest, and refuses to overwrite an existing destination. The caller must stage to a new path and perform the platform-specific replacement only after verification.
+- `NewSessionToken` creates a 256-bit cryptographically random token and provides constant-time comparison/format validation helpers.
+- `NewPrivateLogger` writes under the current user's cache directory, applies restrictive directory/file modes, and rejects non-regular log targets.
+- Basic unit tests cover token validation, rejection of untrusted updater URLs, missing digest rejection, and private logger file creation.
+
+**Integration status:** these helpers are a standalone module and are not yet wired into the upstream `cmd/client` or `cmd/setup` programs. The original updater, setup request handling, and sensitive command logging therefore remain unchanged in the native client itself. No Go test or cross-platform build has been run yet. The helper package is not a replacement native-client binary and must not be distributed as a fixed client.
+
+
+### Follow-up updater trust-source work — 2026-11-11
+
+Added `ReleaseAssetSHA256` and `NewGitHubMetadataClient` to the standalone helper module. The helper requests the exact versioned GitHub release metadata endpoint, checks HTTP 200, caps metadata at 2 MiB, verifies the returned tag and exact asset name, validates the published `sha256:` digest and HTTPS GitHub asset URL, and fails closed when GitHub does not provide a digest. Added unit tests for the successful metadata path, missing digest, mismatched tag, invalid version, and non-success HTTP status.
+
+This closes the helper-level gap between “caller must supply a trusted digest” and a concrete GitHub release-metadata lookup. It does **not** yet modify the upstream updater or native-client executable. The CI run observed so far was triggered before this follow-up commit: the Go 1.13.15 job passed for that earlier commit, while the Go stable job was still queued at last inspection. The new release-metadata code and tests have not yet been confirmed by CI.
+
+The next integration step remains to import the upstream native-client source into a dedicated subtree and wire this metadata lookup plus `DownloadVerified` into the actual updater. Setup path validation, Origin/Host checks, token integration, and sensitive-log removal also remain outstanding.
+
+
+## Native-client source integration progress — 2026-11-11
+
+A source snapshot of upstream `dessant/buster-client` was added under `native-client-hardening/upstream/`, including its GPL-3.0 license, module manifests, client, setup server, platform registry helpers, and input wrappers. This makes the actual Go application available for integration review rather than leaving only detached helper functions.
+
+### Integrated changes in the source snapshot
+
+1. **Updater verification:** `cmd/client/main.go` now obtains the exact versioned release asset URL and SHA-256 from the GitHub Releases API via `security.ReleaseAssetSHA256`. It fails closed if the asset or digest is missing, downloads to a new `.verified` staging path via `security.DownloadVerified`, and executes only that verified staged setup binary. The helper enforces HTTPS, response status, redirect allowlist, a 100 MiB cap, and digest comparison. The previous direct download path is no longer used by `installClient`.
+2. **Sensitive logging:** client and setup entrypoints use `security.NewPrivateLogger`. Logs of key names and typed text were removed from the client command dispatcher.
+3. **Setup session:** setup token generation now uses `security.NewSessionToken`; startup fails if generation fails, and comparisons use `security.SessionTokenEqual`.
+4. **Loopback request guard:** setup server requests must use the exact listener Host and originate from a loopback peer.
+5. **Install argument validation:** browser/target names and Chrome/Firefox extension identifier formats are checked; install paths are recomputed for the current user and compared against submitted paths before installation.
+
+### Validation and limitations
+
+- The helper workflow's Go 1.13.15 job passed on an earlier commit before the latest integration work. The stable job was still in progress at the time of the previous check.
+- A new CI workflow now runs helper tests/vet and native-client tests/vet/build on Go 1.13.15 and stable. The run associated with the latest workflow change was queued at the time of this report update; no successful result is claimed.
+- The setup executable build is not yet part of CI because its embedded client asset source is generated by the upstream build process. The build pipeline needs a reproducible asset-generation step.
+- Native message validation has been added: typed text is capped at 4 KiB, NUL and invalid UTF-8 are rejected, key identifiers are restricted to a bounded ASCII set, mouse coordinates are range-checked, and unknown commands are rejected. Regression tests cover these cases.
+- Keyboard toggle error strings and mouse movement failure booleans are now propagated to the native messaging response. Panic recovery covers text typing and mouse clicking. However, the pinned RobotGo `TypeStr` and `MouseClick` APIs return no operation status, so successful return is not proof of OS-level delivery.
+- Not yet completed: Origin/CSRF browser compatibility testing, Windows-specific reparse-point/junction defenses, full OS-level confirmation for text/click operations (requires a backend with status-returning APIs), dependency vulnerability scanning, and Windows/macOS builds and runtime tests. Standard symbolic-link checks were added for existing install-directory components and manifest files.
+- The helper module and source snapshot are not a production installer. Do not treat this as a fully security-fixed or release-ready native client.
+
+The upstream code is retained with its original GPL-3.0 license and attribution. The source snapshot should be periodically compared against the upstream repository before any release.
+
+
+**Upstream source provenance:** the native-client snapshot under `native-client-hardening/upstream/` was copied from `dessant/buster-client` branch `master`, commit `d4a7880c8eb5196110052d0bdad8c8dd003a8ad8`.
+
+- Fixed the native input delay helper: it now samples the intended half-open interval `[min, max)`, validates ranges, and propagates cryptographic entropy failures rather than ignoring them. Added deterministic tests for bounds and entropy errors. Keyboard typing/tapping now propagate delay failures; tap attempts key release if its delay fails.
+
+
+- Setup API mutation requests now require a non-empty, non-`null` trusted `Origin`; only top-level GET navigation may omit Origin. Regression tests cover trusted Chrome/Firefox origins, hostile/missing/null origins, install-path containment, symlink components, and symlink manifest rejection. This is defense in depth alongside the session token, exact Host check, and loopback peer check; browser runtime compatibility and Windows junction/reparse-point validation remain outstanding.
+
+## Security hardening execution update — 2026-11-11
+
+### Implemented in the current native-client hardening branch
+- Windows installation path checks now inspect FILE_ATTRIBUTE_REPARSE_POINT on every existing directory component. Junctions, symbolic links, and other reparse-point redirections are rejected. A Windows junction regression test is included.
+- Setup installation paths must exactly match the server-derived path for the selected browser and current platform; being merely somewhere under the home directory is no longer sufficient.
+- Manifest and embedded-asset destinations reject reparse points as well as symbolic links.
+- Setup API requests enforce exact Host, loopback peer, trusted Origin, GET/POST-only methods, URL-encoded POST content, a 16 KiB request cap, and no-store/security response headers. The setup page has a restrictive CSP.
+- Added setup request-guard tests for hostile Origin, missing Origin, invalid Host, non-loopback peers, invalid content types, oversized bodies, and unsupported methods.
+- Updater staging names now include a cryptographically random token and retain the .exe suffix on Windows.
+- Added updater download tests for a valid digest, tampered payloads, oversized payloads, and non-200 responses.
+- Private logging rejects pre-existing symlinked directories and log targets and checks that the opened file still matches the path. This reduces common symlink attacks but is not a complete race-free platform-specific file-opening or Windows ACL implementation.
+- CI now has setup tests/compile checks on Ubuntu, Windows, and macOS using a CI-only embedded-asset stub; it also schedules govulncheck for the helper, native-client, and setup modules.
+
+### Explicitly not complete / requires real platform validation
+- The CI-only setup stub does not replace the production go-bindata asset generation step. A production setup installer has not yet been reproducibly built.
+- Windows junction/reparse-point detection is implemented but has not yet passed Windows CI; junction creation may be skipped by the test runner if unavailable.
+- NewPrivateLogger still needs a verified Windows DACL implementation. Unix-style Chmod(0700/0600) does not prove Windows ACL privacy.
+- Symlink/reparse checks are check-then-use defenses and do not fully eliminate filesystem TOCTOU races. A handle-relative, no-follow file operation strategy is still needed for a strong guarantee.
+- The pinned RobotGo TypeStr and MouseClick methods do not expose operation status. Normal return cannot confirm OS-level input delivery. A cross-platform replacement backend has not been implemented.
+- Browser-based setup compatibility, native messaging end-to-end behavior, real OS input delivery, installer replacement/rollback, and adversarial runtime testing remain unverified.
+- Extension CSP destination inventory, Firefox MV2 resource exposure, and credential-storage review from PR #1 remain open.
+- GitHub Actions runs have remained queued at inspection time. No new test, vet, vulnerability scan, or platform build is claimed as passing.
+
+**Release status: NOT production-ready.** Keep both hardening pull requests in draft until the outstanding platform, runtime, dependency, and packaging validations are complete.
