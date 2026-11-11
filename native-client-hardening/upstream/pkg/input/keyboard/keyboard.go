@@ -20,7 +20,9 @@ func TypeText(text string) (err error) {
 	}()
 	for _, char := range text {
 		robotgo.TypeStr(string(char))
-		utils.RandSleep(60, 80)
+		if err := utils.RandSleep(60, 80); err != nil {
+			return fmt.Errorf("text input delay failed: %v", err)
+		}
 	}
 	return nil
 }
@@ -37,7 +39,13 @@ func TapKey(key string) error {
 	if err := PressKey(key); err != nil {
 		return err
 	}
-	utils.RandSleep(35, 40)
+	if err := utils.RandSleep(35, 40); err != nil {
+		releaseErr := ReleaseKey(key)
+		if releaseErr != nil {
+			return fmt.Errorf("tap delay failed (%v); key release also failed: %w", err, releaseErr)
+		}
+		return fmt.Errorf("tap delay failed: %v", err)
+	}
 	if err := ReleaseKey(key); err != nil {
 		return fmt.Errorf("key was pressed but release failed: %w", err)
 	}
