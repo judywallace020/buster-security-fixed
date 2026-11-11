@@ -42,9 +42,9 @@ func pathExists(path string) (bool, error) {
 	return true, nil
 }
 
-// ensureNoSymlinkComponents rejects symlinks in every existing component of
-// an installation directory. Missing suffixes are safe to create after the
-// existing prefix has been checked.
+// ensureNoSymlinkComponents rejects symlinks and Windows reparse points in
+// every existing component of an installation directory. Missing suffixes
+// are safe to create after the existing prefix has been checked.
 func ensureNoSymlinkComponents(path string) error {
 	abs, err := filepath.Abs(filepath.Clean(path))
 	if err != nil {
