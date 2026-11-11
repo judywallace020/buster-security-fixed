@@ -69,3 +69,11 @@ Integrated in the upstream client source:
 
 
 - Setup API mutation requests now require a non-empty, non-`null` trusted `Origin`; only top-level GET navigation may omit Origin. Regression tests cover trusted Chrome/Firefox origins, hostile/missing/null origins, install-path containment, symlink components, and symlink manifest rejection. This is defense in depth alongside the session token, exact Host check, and loopback peer check; browser runtime compatibility and Windows junction/reparse-point validation remain outstanding.
+
+## Additional security work (2026-11-11)
+- Windows installation path checks now reject reparse points/junctions, and install paths must match the exact server-derived browser location.
+- Setup requests enforce trusted Origin, Host, loopback peer, URL-encoded POST content, GET/POST-only methods, and a 16 KiB body limit. Added request guard and filesystem regression tests.
+- Updater staging uses a cryptographically random path and preserves .exe on Windows. Added digest/tampering/size/status tests for verified downloads.
+- Private logger rejects symlinked paths and verifies the opened file identity. Windows DACL privacy and race-free file opening remain unverified.
+- CI now schedules setup test/compile checks on Linux, Windows, and macOS (with a CI-only stub for embedded executable assets), plus Go vulnerability scans.
+- Production setup asset generation, RobotGo text/click success reporting, full TOCTOU protection, browser/runtime tests, and successful CI runs remain outstanding. This project is not production-ready.
