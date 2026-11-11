@@ -420,7 +420,7 @@ func requestGuard(next http.Handler) http.Handler {
 		ip := net.ParseIP(host)
 		origin := req.Header.Get("Origin")
 		if req.Host != expectedHost || ip == nil || !ip.IsLoopback() ||
-			(origin != "" && !validRequestOrigin(origin, expectedHost)) {
+			!validRequestOriginForMethod(req.Method, origin, expectedHost) {
 			http.Error(res, "forbidden", http.StatusForbidden)
 			return
 		}
