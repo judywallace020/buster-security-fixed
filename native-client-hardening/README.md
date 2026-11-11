@@ -59,7 +59,7 @@ Integrated in the upstream client source:
 ## Not yet complete or verified
 
 - Origin/CSRF policy still needs browser compatibility tests; the loopback Host/peer guard is not a substitute for a fully tested Origin policy.
-- Existing install directories and their parent components still need explicit symlink/reparse-point hardening.
+- Setup now rejects symbolic links in existing install-directory components and rejects symlink/non-regular manifest files. Windows-specific reparse-point/junction handling still needs dedicated validation.
 - Input wrappers still discard RobotGo errors; command input validation and bounds need to be added.
 - Setup executable embedding/build generation and Windows/macOS builds have not yet been validated.
 - CI now includes helper tests and a Linux native-client build matrix; the latest workflow result is pending.
