@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -70,7 +71,7 @@ func DownloadVerified(ctx context.Context, client *http.Client, sourceURL, expec
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(dir, ".buster-update-*")
+	tmp, err := ioutil.TempFile(dir, ".buster-update-*")
 	if err != nil {
 		return err
 	}
