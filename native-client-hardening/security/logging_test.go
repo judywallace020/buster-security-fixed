@@ -1,6 +1,7 @@
 package security
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -8,8 +9,14 @@ import (
 
 func TestNewPrivateLoggerCreatesRegularFile(t *testing.T) {
 	oldHome := os.Getenv("XDG_CACHE_HOME")
-	cache := t.TempDir()
-	t.Setenv("XDG_CACHE_HOME", cache)
+	cache, err := ioutil.TempDir("", "buster-cache-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(cache)
+	if err := os.Setenv("XDG_CACHE_HOME", cache); err != nil {
+		t.Fatal(err)
+	}
 	defer os.Setenv("XDG_CACHE_HOME", oldHome)
 
 	logger, file, err := NewPrivateLogger("test.log")
