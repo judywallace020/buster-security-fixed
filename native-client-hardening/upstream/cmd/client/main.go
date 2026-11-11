@@ -9,6 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strings"
+	"unicode/utf8"
 	"runtime"
 	"time"
 
@@ -107,7 +110,153 @@ func installCleanup() error {
 	return nil
 }
 
+var inputKeyPattern = regexp.MustCompile(`^[A-Za-z0-9_+.-]{1,64}package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"unicode/utf8"
+	"runtime"
+	"time"
+
+	"github.com/dessant/nativemessaging"
+
+	"buster-client-hardening/security"
+	"buster-client/pkg/input"
+	"buster-client/utils"
+)
+
+var buildVersion string
+
+type message struct {
+	MessageID  string `json:"id"`
+	APIVersion string `json:"apiVersion"`
+	Command    string `json:"command"`
+	Data       string `json:"data"`
+	X          int    `json:"x"`
+	Y          int    `json:"y"`
+}
+
+type response struct {
+	MessageID  string `json:"id"`
+	APIVersion string `json:"apiVersion"`
+	Success    bool   `json:"success"`
+	Data       string `json:"data"`
+}
+
+func installClient(version string) error {
+	if runtime.GOOS != "windows" {
+		admin, err := utils.UserAdmin()
+		if err != nil {
+			log.Println(err)
+			return errors.New("cannot inspect current user")
+		}
+		if admin {
+			return errors.New("setup must be run without administrative rights")
+		}
+	}
+
+	goos := runtime.GOOS
+	if goos == "darwin" {
+		goos = "macos"
+	}
+	assetName := fmt.Sprintf("buster-client-setup-v%s-%s-%s", version, goos, runtime.GOARCH)
+	if goos == "windows" {
+		assetName += ".exe"
+	}
+
+	execPath, err := os.Executable()
+	if err != nil {
+		log.Println(err)
+		return errors.New("cannot get executable path")
+	}
+	setupPath := filepath.Join(filepath.Dir(execPath), utils.GetExecName("buster-client-setup"))
+	stagedPath := setupPath + ".verified"
+
+	metadataClient := security.NewGitHubMetadataClient()
+	assetURL, digest, err := security.ReleaseAssetSHA256(metadataClient, version, assetName)
+	if err != nil {
+		log.Printf("Updater metadata validation failed: %v", err)
+		return errors.New("cannot verify update release metadata")
+	}
+
+	downloadCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	if err := security.DownloadVerified(downloadCtx, security.NewReleaseHTTPClient(), assetURL, digest, stagedPath, security.DefaultMaxDownloadBytes); err != nil {
+		log.Printf("Verified updater download failed: %v", err)
+		return errors.New("cannot download and verify setup")
+	}
+	defer os.Remove(stagedPath)
+
+	setupOutput, err := exec.Command(stagedPath, "--update").CombinedOutput()
+	if err != nil {
+		log.Printf("Verified setup execution failed: %v", err)
+		return errors.New("cannot run verified setup")
+	}
+
+	errMessage := string(setupOutput)
+	if errMessage != "" {
+		return errors.New(errMessage)
+	}
+
+	return nil
+}
+
+func installCleanup() error {
+	execPath, err := os.Executable()
+	if err != nil {
+		log.Println(err)
+		return errors.New("cannot get executable path")
+	}
+
+	os.Remove(execPath + ".old")
+
+	return nil
+}
+
+)
+
+const maxNativeTextBytes = 4096
+const maxNativeCoordinate = 32767
+
+func validateInputMessage(msg *message) error {
+	if msg == nil {
+		return errors.New("missing native message")
+	}
+	switch msg.Command {
+	case "pressKey", "releaseKey", "tapKey":
+		if !inputKeyPattern.MatchString(msg.Data) {
+			return errors.New("invalid key identifier")
+		}
+	case "typeText":
+		if len(msg.Data) > maxNativeTextBytes || !utf8.ValidString(msg.Data) || strings.IndexByte(msg.Data, 0) >= 0 {
+			return errors.New("text input is invalid or exceeds 4096 bytes")
+		}
+	case "moveMouse":
+		if msg.X < -maxNativeCoordinate || msg.X > maxNativeCoordinate ||
+			msg.Y < -maxNativeCoordinate || msg.Y > maxNativeCoordinate {
+			return errors.New("mouse coordinates are out of bounds")
+		}
+	case "clickMouse", "ping":
+		// These commands carry no user-controlled payload.
+	default:
+		return errors.New("unknown command")
+	}
+	return nil
+}
+
 func processMessage(msg *message, rsp *response) error {
+	if err := validateInputMessage(msg); err != nil {
+		return err
+	}
 	log.Printf("Command: %s", msg.Command)
 
 	if msg.Command == "pressKey" {
