@@ -196,3 +196,12 @@ A separate branch now contains an initial helper package under `native-client-ha
 - Basic unit tests cover token validation, rejection of untrusted updater URLs, missing digest rejection, and private logger file creation.
 
 **Integration status:** these helpers are a standalone module and are not yet wired into the upstream `cmd/client` or `cmd/setup` programs. The original updater, setup request handling, and sensitive command logging therefore remain unchanged in the native client itself. No Go test or cross-platform build has been run yet. The helper package is not a replacement native-client binary and must not be distributed as a fixed client.
+
+
+### Follow-up updater trust-source work — 2026-11-11
+
+Added `ReleaseAssetSHA256` and `NewGitHubMetadataClient` to the standalone helper module. The helper requests the exact versioned GitHub release metadata endpoint, checks HTTP 200, caps metadata at 2 MiB, verifies the returned tag and exact asset name, validates the published `sha256:` digest and HTTPS GitHub asset URL, and fails closed when GitHub does not provide a digest. Added unit tests for the successful metadata path, missing digest, mismatched tag, invalid version, and non-success HTTP status.
+
+This closes the helper-level gap between “caller must supply a trusted digest” and a concrete GitHub release-metadata lookup. It does **not** yet modify the upstream updater or native-client executable. The CI run observed so far was triggered before this follow-up commit: the Go 1.13.15 job passed for that earlier commit, while the Go stable job was still queued at last inspection. The new release-metadata code and tests have not yet been confirmed by CI.
+
+The next integration step remains to import the upstream native-client source into a dedicated subtree and wire this metadata lookup plus `DownloadVerified` into the actual updater. Setup path validation, Origin/Host checks, token integration, and sensitive-log removal also remain outstanding.
