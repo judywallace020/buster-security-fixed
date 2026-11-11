@@ -60,7 +60,7 @@ Integrated in the upstream client source:
 
 - Origin/CSRF policy still needs browser compatibility tests; the loopback Host/peer guard is not a substitute for a fully tested Origin policy.
 - Setup now rejects symbolic links in existing install-directory components and rejects symlink/non-regular manifest files. Windows-specific reparse-point/junction handling still needs dedicated validation.
-- Native message validation now bounds typed text to 4 KiB, rejects NUL/invalid UTF-8, validates key identifiers, bounds mouse coordinates, and rejects unknown commands. The underlying RobotGo wrappers still discard input-operation errors.
+- Native message validation now bounds typed text to 4 KiB, rejects NUL/invalid UTF-8, validates key identifiers, bounds mouse coordinates, and rejects unknown commands. Keyboard toggle errors and mouse-movement failures are now returned to the native messaging response. Panic recovery was added for text/click operations. The pinned RobotGo TypeStr and MouseClick APIs expose no success status, so those operations cannot be positively verified on normal return.
 - Setup executable embedding/build generation and Windows/macOS builds have not yet been validated.
 - CI now runs helper tests/vet plus native-client tests/vet/build on Go 1.13.15 and stable; the latest workflow run is pending.
 - Do not distribute the source snapshot as a finished native-client installer until CI and platform integration tests pass.
