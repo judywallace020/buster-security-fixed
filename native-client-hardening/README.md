@@ -66,3 +66,6 @@ Integrated in the upstream client source:
 - Do not distribute the source snapshot as a finished native-client installer until CI and platform integration tests pass.
 
 - Fixed the native input delay helper: it now samples the intended half-open interval `[min, max)`, validates ranges, and propagates cryptographic entropy failures rather than ignoring them. Added deterministic tests for bounds and entropy errors. Keyboard typing/tapping now propagate delay failures; tap attempts key release if its delay fails.
+
+
+- Setup API mutation requests now require a non-empty, non-`null` trusted `Origin`; only top-level GET navigation may omit Origin. Regression tests cover trusted Chrome/Firefox origins, hostile/missing/null origins, install-path containment, symlink components, and symlink manifest rejection. This is defense in depth alongside the session token, exact Host check, and loopback peer check; browser runtime compatibility and Windows junction/reparse-point validation remain outstanding.
