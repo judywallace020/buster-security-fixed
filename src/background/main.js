@@ -666,7 +666,7 @@ async function transcribeAudio(audioUrl, lang) {
     audioUrl.length > 4096 ||
     !isRecaptchaUrl(audioUrl) ||
     typeof lang !== 'string' ||
-    !/^[a-zA-Z0-9-]{2,16}$/.test(lang)
+    !/^[a-zA-Z0-9-]{0,16}$/.test(lang)
   ) {
     throw new Error('Invalid audio transcription request');
   }
