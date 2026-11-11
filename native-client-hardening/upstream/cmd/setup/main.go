@@ -71,6 +71,7 @@ var shutdown = make(chan bool)
 var updating *bool
 
 var session string
+var expectedHost string
 
 type manifest struct {
 	Name              string   `json:"name"`
@@ -327,6 +328,21 @@ func installHandler(res http.ResponseWriter, req *http.Request) {
 			targetEnv := req.FormValue("targetEnv")
 			extension := req.FormValue("extension")
 
+			if !validBrowserTarget(browser, targetEnv) || !validExtensionIdentifier(targetEnv, extension) {
+				writeError(res, errors.New("invalid browser, target environment, or extension identifier"))
+				return
+			}
+			expectedLocation, err := getLocation(browser, targetEnv)
+			if err != nil {
+				writeError(res, err)
+				return
+			}
+			if !sameExpectedPath(appDir, expectedLocation["appDir"]) ||
+				!sameExpectedPath(manifestDir, expectedLocation["manifestDir"]) {
+				writeError(res, errors.New("install paths do not match the current user's browser locations"))
+				return
+			}
+
 			log.Println("Installing client")
 			if err := install(manifestDir, appDir, browser, targetEnv, extension); err != nil {
 				writeError(res, err)
@@ -357,6 +373,18 @@ func closeHandler(res http.ResponseWriter, req *http.Request) {
 	} else {
 		panic(http.ErrAbortHandler)
 	}
+}
+
+func requestGuard(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		host, _, err := net.SplitHostPort(req.RemoteAddr)
+		ip := net.ParseIP(host)
+		if req.Host != expectedHost || ip == nil || !ip.IsLoopback() {
+			http.Error(res, "forbidden", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(res, req)
+	})
 }
 
 func notFoundHandler(res http.ResponseWriter, req *http.Request) {
@@ -410,7 +438,7 @@ func main() {
 	mux.HandleFunc("/", notFoundHandler)
 
 	server = &http.Server{
-		Handler:      mux,
+		Handler:      requestGuard(mux),
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  15 * time.Second,
@@ -421,6 +449,8 @@ func main() {
 		log.Println(err)
 		return
 	}
+
+	expectedHost = listener.Addr().String()
 
 	session, err = newToken()
 	if err != nil {
