@@ -53,7 +53,7 @@ Integrated in the upstream client source:
 - The updater requests the exact GitHub release metadata for the requested version, requires the expected asset's published SHA-256 digest, then downloads to a new staging path with bounded size and redirect validation before executing the verified setup binary.
 - Client and setup logs now use the private per-user logger helper. Key presses, released keys, tapped keys, and typed text are no longer written to logs.
 - Setup session tokens now use cryptographic random bytes, propagate token-generation failures, and compare in constant time.
-- Setup HTTP requests are restricted to the exact loopback Host and a loopback peer address.
+- Setup HTTP requests are restricted to the exact loopback Host and a loopback peer address. If an Origin header is present, it must be the local setup origin or a recognized Chrome/Firefox extension origin; missing Origin is still accepted for compatibility, so this is not yet a complete CSRF guarantee.
 - Setup install requests validate supported browser/target identifiers and Chrome/Firefox extension identifier formats. User-editable install paths remain supported but must be absolute paths inside the current user's home directory; the server recomputes the supported default locations and rejects unresolved browser targets.
 
 ## Not yet complete or verified
