@@ -17,6 +17,6 @@ This repository contains a reviewed working copy of [dessant/buster](https://git
 
 ## Important limitations
 
-This is not a fully security-fixed release. The CSP still needs a complete destination inventory; Firefox Manifest V2 retains legacy broad web-accessible-resource declarations; custom IBM endpoints may need additional permissions; background message validation, audio limits, credential handling, native-client review, dependency scanning, browser builds, and runtime tests remain outstanding.
+This is not a fully security-fixed release. The CSP still needs a complete destination inventory; Firefox Manifest V2 retains legacy broad web-accessible-resource declarations; custom IBM endpoints may need additional permissions; the new message/audio checks still need adversarial runtime testing; credential handling, native-client review, dependency scanning, browser builds, and runtime tests remain outstanding.
 
 See [SECURITY_REPORT.md](SECURITY_REPORT.md) before using or distributing this branch. Preserve upstream attribution and comply with GPL-3.0 for derivative distributions.
