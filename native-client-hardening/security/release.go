@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"encoding/hex"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -56,7 +58,7 @@ func ReleaseAssetSHA256(client *http.Client, version, assetName string) (string,
 	}
 
 	const maxMetadataBytes = 2 << 20
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxMetadataBytes+1))
+	body, err := ioutil.ReadAll(io.LimitReader(resp.Body, maxMetadataBytes+1))
 	if err != nil {
 		return "", "", err
 	}
@@ -83,11 +85,12 @@ func ReleaseAssetSHA256(client *http.Client, version, assetName string) (string,
 		if len(digest) != 64 {
 			return "", "", errors.New("release asset SHA-256 digest has invalid length")
 		}
-		if _, err := fmt.Sscanf(digest, "%064x", new([32]byte)); err != nil {
+		decoded, err := hex.DecodeString(digest)
+		if err != nil || len(decoded) != 32 {
 			return "", "", errors.New("release asset SHA-256 digest is invalid")
 		}
 		u, err := url.Parse(asset.BrowserDownloadURL)
-		if err != nil || u.Scheme != "https" || u.Hostname() != "github.com" || u.User != nil {
+		if err != nil || u.Scheme != "https" || u.Hostname() != "github.com" || u.Port() != "" || u.User != nil {
 			return "", "", errors.New("release asset URL is not a trusted GitHub URL")
 		}
 		if !strings.HasPrefix(u.Path, "/dessant/buster-client/releases/download/v"+version+"/") {
@@ -104,7 +107,7 @@ func NewGitHubMetadataClient() *http.Client {
 	return &http.Client{
 		Timeout: 20 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) >= 3 || req.URL.Scheme != "https" || req.URL.Hostname() != "api.github.com" {
+			if len(via) >= 3 || req.URL.Scheme != "https" || req.URL.Hostname() != "api.github.com" || req.URL.Port() != "" {
 				return errors.New("refusing untrusted GitHub metadata redirect")
 			}
 			return nil
