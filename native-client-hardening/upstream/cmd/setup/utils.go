@@ -32,6 +32,13 @@ func pathExists(path string) (bool, error) {
 	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
 		return false, errors.New("manifest path must be a regular non-symlink file")
 	}
+	reparse, reparseErr := isReparsePoint(path)
+	if reparseErr != nil {
+		return false, reparseErr
+	}
+	if reparse {
+		return false, errors.New("manifest path must not be a Windows reparse point")
+	}
 	return true, nil
 }
 
@@ -87,6 +94,13 @@ func restoreAsset(path, name string) error {
 	if info, err := os.Lstat(path); err == nil {
 		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
 			return errors.New("asset destination must be a regular non-symlink file")
+		}
+		reparse, reparseErr := isReparsePoint(path)
+		if reparseErr != nil {
+			return reparseErr
+		}
+		if reparse {
+			return errors.New("asset destination must not be a Windows reparse point")
 		}
 	} else if !os.IsNotExist(err) {
 		return err
