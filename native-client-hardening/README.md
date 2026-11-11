@@ -47,7 +47,7 @@ License: GPL-3.0-only; retain the upstream LICENSE and attribution when integrat
 
 ## Upstream source import and first integration pass
 
-The upstream `dessant/buster-client` source files and GPL-3.0 license have been copied under `upstream/` for a reviewable integration target. This is a source snapshot, not a built or signed release.
+The upstream `dessant/buster-client` source files and GPL-3.0 license have been copied under `upstream/` for a reviewable integration target. This is a source snapshot, not a built or signed release. The imported upstream `master` snapshot is pinned to commit `d4a7880c8eb5196110052d0bdad8c8dd003a8ad8`.
 
 Integrated in the upstream client source:
 - The updater requests the exact GitHub release metadata for the requested version, requires the expected asset's published SHA-256 digest, then downloads to a new staging path with bounded size and redirect validation before executing the verified setup binary.
