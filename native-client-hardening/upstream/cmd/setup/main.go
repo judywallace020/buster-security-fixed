@@ -349,6 +349,16 @@ func installHandler(res http.ResponseWriter, req *http.Request) {
 				writeError(res, errors.New("install paths do not match the current user's browser locations"))
 				return
 			}
+			if err := ensureNoSymlinkComponents(appDir); err != nil {
+				writeError(res, err)
+				return
+			}
+			if manifestDir != "" {
+				if err := ensureNoSymlinkComponents(manifestDir); err != nil {
+					writeError(res, err)
+					return
+				}
+			}
 
 			log.Println("Installing client")
 			if err := install(manifestDir, appDir, browser, targetEnv, extension); err != nil {
