@@ -48,6 +48,10 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
+      - name: Install native input build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxtst-dev libxkbcommon-dev libxkbcommon-x11-dev libxinerama-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxrender-dev libxext-dev libxkbfile-dev libpng-dev
       - name: Build native messaging client
         working-directory: native-client-hardening/upstream/cmd/client
         run: |
