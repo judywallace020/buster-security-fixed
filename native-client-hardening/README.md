@@ -54,7 +54,7 @@ Integrated in the upstream client source:
 - Client and setup logs now use the private per-user logger helper. Key presses, released keys, tapped keys, and typed text are no longer written to logs.
 - Setup session tokens now use cryptographic random bytes, propagate token-generation failures, and compare in constant time.
 - Setup HTTP requests are restricted to the exact loopback Host and a loopback peer address.
-- Setup install requests validate supported browser/target identifiers, validate Chrome/Firefox extension identifier formats, and compare submitted install paths against paths recomputed for the current user.
+- Setup install requests validate supported browser/target identifiers and Chrome/Firefox extension identifier formats. User-editable install paths remain supported but must be absolute paths inside the current user's home directory; the server recomputes the supported default locations and rejects unresolved browser targets.
 
 ## Not yet complete or verified
 
