@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"io/ioutil"
 	"path/filepath"
@@ -21,14 +22,51 @@ func stringInSlice(s []string, e string) bool {
 }
 
 func pathExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
+	info, err := os.Lstat(path)
 	if os.IsNotExist(err) {
 		return false, nil
 	}
-	return true, err
+	if err != nil {
+		return false, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return false, errors.New("manifest path must be a regular non-symlink file")
+	}
+	return true, nil
+}
+
+// ensureNoSymlinkComponents rejects symlinks in every existing component of
+// an installation directory. Missing suffixes are safe to create after the
+// existing prefix has been checked.
+func ensureNoSymlinkComponents(path string) error {
+	abs, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return err
+	}
+	volume := filepath.VolumeName(abs)
+	current := volume + string(os.PathSeparator)
+	remainder := strings.TrimPrefix(abs, current)
+	parts := strings.Split(remainder, string(os.PathSeparator))
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		current = filepath.Join(current, part)
+		info, statErr := os.Lstat(current)
+		if os.IsNotExist(statErr) {
+			return nil
+		}
+		if statErr != nil {
+			return statErr
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return errors.New("installation path contains a symbolic link")
+		}
+		if !info.IsDir() {
+			return errors.New("installation path component is not a directory")
+		}
+	}
+	return nil
 }
 
 func newToken() (string, error) {
