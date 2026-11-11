@@ -661,9 +661,34 @@ async function getAudioContent(audioBuffer, audioOptions) {
 }
 
 async function transcribeAudio(audioUrl, lang) {
-  const audioBuffer = await (
-    await fetch(audioUrl, {credentials: 'omit'})
-  ).arrayBuffer();
+  if (
+    typeof audioUrl !== 'string' ||
+    audioUrl.length > 4096 ||
+    !isRecaptchaUrl(audioUrl) ||
+    typeof lang !== 'string' ||
+    !/^[a-zA-Z0-9-]{2,16}$/.test(lang)
+  ) {
+    throw new Error('Invalid audio transcription request');
+  }
+
+  const response = await fetch(audioUrl, {
+    credentials: 'omit',
+    redirect: 'follow'
+  });
+
+  if (!response.ok || !isRecaptchaUrl(response.url)) {
+    throw new Error('Untrusted or unsuccessful audio response');
+  }
+
+  const contentType = (response.headers.get('content-type') || '').toLowerCase();
+  if (
+    !contentType.startsWith('audio/') &&
+    !contentType.startsWith('application/octet-stream')
+  ) {
+    throw new Error('Unexpected audio response content type');
+  }
+
+  const audioBuffer = await readResponseWithLimit(response, MAX_AUDIO_BYTES);
 
   const audioOptions = {trimStart: 1.5, trimEnd: 1.5};
 
@@ -867,7 +892,139 @@ async function transcribeAudio(audioUrl, lang) {
   }
 }
 
+const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
+
+function isRecaptchaUrl(value) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    const allowedHost =
+      host === 'google.com' ||
+      host.endsWith('.google.com') ||
+      host === 'recaptcha.net' ||
+      host.endsWith('.recaptcha.net');
+
+    return (
+      url.protocol === 'https:' &&
+      allowedHost &&
+      url.pathname.startsWith('/recaptcha/')
+    );
+  } catch (err) {
+    return false;
+  }
+}
+
+function isRecaptchaSender(sender) {
+  return (
+    sender?.id === browser.runtime.id &&
+    typeof sender.url === 'string' &&
+    isRecaptchaUrl(sender.url)
+  );
+}
+
+function isExtensionPageSender(sender) {
+  return (
+    sender?.id === browser.runtime.id &&
+    typeof sender.url === 'string' &&
+    sender.url.startsWith(browser.runtime.getURL(''))
+  );
+}
+
+function validateNativeMessage(message) {
+  if (!message || typeof message !== 'object' || Array.isArray(message)) {
+    return false;
+  }
+
+  const {command, data, x, y} = message;
+  const keyCommands = ['pressKey', 'tapKey', 'releaseKey'];
+
+  if (keyCommands.includes(command)) {
+    return ['shift', 'tab', 'enter'].includes(data);
+  }
+
+  if (command === 'typeText') {
+    return typeof data === 'string' && data.length > 0 && data.length <= 256;
+  }
+
+  if (command === 'moveMouse') {
+    return (
+      Number.isFinite(x) &&
+      Number.isFinite(y) &&
+      Math.abs(x) <= 10000 &&
+      Math.abs(y) <= 10000
+    );
+  }
+
+  if (command === 'clickMouse' || command === 'installCleanup') {
+    return data === undefined;
+  }
+
+  if (command === 'installClient') {
+    return data === clientAppVersion;
+  }
+
+  return false;
+}
+
+async function readResponseWithLimit(response, maxBytes) {
+  const contentLength = Number(response.headers.get('content-length'));
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    await response.body?.cancel();
+    throw new Error('Audio response exceeds the allowed size');
+  }
+
+  if (!response.body) {
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength > maxBytes) {
+      throw new Error('Audio response exceeds the allowed size');
+    }
+    return buffer;
+  }
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) {
+        break;
+      }
+
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel();
+        throw new Error('Audio response exceeds the allowed size');
+      }
+
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const result = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  return result.buffer;
+}
+
 async function processMessage(request, sender) {
+  if (
+    !request ||
+    typeof request !== 'object' ||
+    Array.isArray(request) ||
+    typeof request.id !== 'string' ||
+    sender?.id !== browser.runtime.id
+  ) {
+    return;
+  }
+
   // Samsung Internet 13: extension messages are sometimes also dispatched
   // to the sender frame.
   if (sender.url === self.location.href) {
@@ -890,8 +1047,10 @@ async function processMessage(request, sender) {
       timeout: request.timeout
     });
   } else if (request.id === 'captchaSolved') {
+    if (!isRecaptchaSender(sender)) return;
     await processAppUse();
   } else if (request.id === 'transcribeAudio') {
+    if (!isRecaptchaSender(sender)) return;
     const ruleIds = await addBackgroundRequestListener();
     try {
       return await transcribeAudio(request.audioUrl, request.lang);
@@ -899,10 +1058,24 @@ async function processMessage(request, sender) {
       await removeBackgroundRequestListener({ruleIds});
     }
   } else if (request.id === 'resetCaptcha') {
+    if (
+      !isRecaptchaSender(sender) ||
+      !sender.tab ||
+      !isRecaptchaUrl(request.challengeUrl) ||
+      request.challengeUrl !== sender.url
+    ) return;
     await resetCaptcha(sender.tab.id, sender.frameId, request.challengeUrl);
   } else if (request.id === 'getFramePos') {
+    if (
+      !isRecaptchaSender(sender) ||
+      !sender.tab ||
+      !Number.isInteger(request.frameIndex) ||
+      request.frameIndex < 0 ||
+      request.frameIndex > 1000
+    ) return;
     return getFramePos(sender.tab.id, sender.frameId, request.frameIndex);
   } else if (request.id === 'getOsScale') {
+    if (!isRecaptchaSender(sender) || !sender.tab) return;
     let zoom = await browser.tabs.getZoom(sender.tab.id);
 
     const [[scale, windowWidth]] = await executeScript({
@@ -946,12 +1119,18 @@ async function processMessage(request, sender) {
 
     return scale / zoom;
   } else if (request.id === 'startClientApp') {
+    if (!isRecaptchaSender(sender)) return;
     nativePort = browser.runtime.connectNative('org.buster.client');
   } else if (request.id === 'stopClientApp') {
+    if (!isRecaptchaSender(sender)) return;
     if (nativePort) {
       nativePort.disconnect();
+      nativePort = null;
     }
   } else if (request.id === 'messageClientApp') {
+    if (!isRecaptchaSender(sender) || !validateNativeMessage(request.message)) {
+      return;
+    }
     const message = {
       apiVersion: clientAppVersion,
       ...request.message
@@ -964,8 +1143,10 @@ async function processMessage(request, sender) {
   } else if (request.id === 'getBrowser') {
     return getBrowser();
   } else if (request.id === 'optionChange') {
+    if (!isExtensionPageSender(sender)) return;
     await onOptionChange();
   } else if (request.id === 'clientAppInstall') {
+    if (!isExtensionPageSender(sender)) return;
     await onClientAppInstall();
   }
 }
