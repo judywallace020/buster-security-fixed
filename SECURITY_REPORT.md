@@ -65,7 +65,7 @@ A complete dependency/security scan and runtime test suite were not executed dur
 
 - Retrieved the upstream repository metadata and recursive source tree.
 - Imported the text source files and GPL-3.0 license into this review workspace.
-- No application code was modified in this import commit.
+- Application changes are limited to the background message/audio validation described above and the manifest permission changes; the broader remediation plan remains incomplete.
 - No build, unit test, browser integration test, dependency audit, or penetration test was run.
 
 ## Suggested verification commands
@@ -91,18 +91,30 @@ The following limited changes have now been applied to the Chrome, Edge, Opera, 
 - For Manifest V3 builds (Chrome, Edge, Opera), scoped the setup page web-accessible resource to the local setup origin and scoped reset/style resources to reCAPTCHA origins.
 - Kept Firefox Manifest V2's web-accessible-resource declaration in its required legacy form; this does not provide the same per-origin scoping as the Manifest V3 declarations.
 
-### Validation of this partial change
+### Additional application-layer hardening applied
+
+The background service worker now:
+
+- Rejects malformed runtime message envelopes and messages whose sender ID is not the extension itself.
+- Restricts CAPTCHA-sensitive operations (audio transcription, reset, frame-position/scale queries, and native-client control) to messages originating from the supported reCAPTCHA challenge origins.
+- Validates the audio URL, language tag, final redirect URL, and response media type before transcription.
+- Streams audio responses with a 10 MiB maximum instead of buffering an unbounded response.
+- Validates native-client command names and argument types/ranges before forwarding messages.
+
+### Validation of these partial changes
 
 - Parsed all four edited manifest files as JSON successfully.
 - Confirmed none of the four manifests retains the `<all_urls>` host permission.
 - Confirmed the three Manifest V3 manifests have split, origin-scoped web-accessible-resource entries.
+- Static source checks confirmed all native command names used by the content script are represented in the background allowlist.
+- Static source checks confirmed the sender checks, audio size cap, final-origin validation, and media-type validation are present.
 
 ### Compatibility caveats and remaining work
 
 - Custom, non-standard IBM speech endpoints may no longer be reachable unless their host is added through a deliberate permission flow. Standard Watson Speech-to-Text and IAM endpoints remain listed.
 - The Content Security Policy still contains broad directives; it has not been tightened because the complete runtime destination inventory and compatibility tests have not yet been completed.
 - Firefox Manifest V2 web-accessible resources remain broadly exposed under the legacy manifest format.
-- Background message authorization/schema validation, audio resource limits, credential handling, native-client security review, dependency scanning, browser builds, and runtime tests remain outstanding.
+- The message and audio protections are partial; a complete per-operation schema review and adversarial tests are still required. Credential handling, native-client security review, dependency scanning, browser builds, and runtime tests remain outstanding.
 - No full build or end-to-end test has been run. Do not treat this branch as production-ready.
 
 ## Attribution
