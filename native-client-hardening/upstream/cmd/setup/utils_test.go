@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -49,7 +50,8 @@ func TestValidExtensionIdentifier(t *testing.T) {
 }
 
 func TestIsWithinBase(t *testing.T) {
-	base := t.TempDir()
+	base, cleanup := makeTempDir(t)
+	defer cleanup()
 	inside := filepath.Join(base, "app", "client")
 	outside := filepath.Join(filepath.Dir(base), "outside")
 	if !isWithinBase(inside, base) {
@@ -70,7 +72,8 @@ func TestIsWithinBase(t *testing.T) {
 }
 
 func TestEnsureNoSymlinkComponents(t *testing.T) {
-	base := t.TempDir()
+	base, cleanup := makeTempDir(t)
+	defer cleanup()
 	target := filepath.Join(base, "normal", "child")
 	if err := os.MkdirAll(target, 0700); err != nil {
 		t.Fatal(err)
@@ -89,9 +92,10 @@ func TestEnsureNoSymlinkComponents(t *testing.T) {
 }
 
 func TestPathExistsRejectsSymlink(t *testing.T) {
-	base := t.TempDir()
+	base, cleanup := makeTempDir(t)
+	defer cleanup()
 	regular := filepath.Join(base, "manifest.json")
-	if err := os.WriteFile(regular, []byte("{}"), 0600); err != nil {
+	if err := ioutil.WriteFile(regular, []byte("{}"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if exists, err := pathExists(regular); err != nil || !exists {
@@ -103,5 +107,18 @@ func TestPathExistsRejectsSymlink(t *testing.T) {
 	}
 	if _, err := pathExists(link); err == nil {
 		t.Fatal("manifest symlink must be rejected")
+	}
+}
+
+func makeTempDir(t *testing.T) (string, func()) {
+	t.Helper()
+	dir, err := ioutil.TempDir("", "buster-setup-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dir, func() {
+		if err := os.RemoveAll(dir); err != nil {
+			t.Errorf("remove temporary directory: %v", err)
+		}
 	}
 }
