@@ -365,8 +365,13 @@ func installHandler(res http.ResponseWriter, req *http.Request) {
 				writeError(res, errors.New("cannot determine current user home directory"))
 				return
 			}
-			if !isWithinBase(appDir, currentUser.HomeDir) ||
+			if !sameInstallPath(appDir, expectedLocation["appDir"]) ||
 				(runtime.GOOS == "windows" && manifestDir != "") ||
+				(runtime.GOOS != "windows" && !sameInstallPath(manifestDir, expectedLocation["manifestDir"])) {
+				writeError(res, errors.New("install paths do not match the selected browser's expected locations"))
+				return
+			}
+			if !isWithinBase(appDir, currentUser.HomeDir) ||
 				(runtime.GOOS != "windows" && !isWithinBase(manifestDir, currentUser.HomeDir)) {
 				writeError(res, errors.New("install paths must remain within the current user's home directory"))
 				return
