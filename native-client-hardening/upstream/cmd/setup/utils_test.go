@@ -122,3 +122,17 @@ func makeTempDir(t *testing.T) (string, func()) {
 		}
 	}
 }
+
+func TestSameInstallPath(t *testing.T) {
+	base, cleanup := makeTempDir(t)
+	defer cleanup()
+	if !sameInstallPath(base, filepath.Clean(base)) {
+		t.Fatal("same canonical path should be accepted")
+	}
+	if sameInstallPath(base, filepath.Join(base, "other")) {
+		t.Fatal("different path must be rejected")
+	}
+	if sameInstallPath("relative", base) {
+		t.Fatal("relative path must be rejected")
+	}
+}
