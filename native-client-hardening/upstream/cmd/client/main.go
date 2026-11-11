@@ -71,10 +71,7 @@ func installClient(version string) error {
 	if err != nil {
 		return errors.New("cannot create a unique updater staging name")
 	}
-	stagedPath := setupPath + "." + stageToken + ".verified"
-	if runtime.GOOS == "windows" {
-		stagedPath += ".exe"
-	}
+	stagedPath := stagedSetupPath(setupPath, runtime.GOOS, stageToken)
 
 	metadataClient := security.NewGitHubMetadataClient()
 	assetURL, digest, err := security.ReleaseAssetSHA256(metadataClient, version, assetName)
@@ -240,4 +237,12 @@ func main() {
 			return
 		}
 	}
+}
+
+func stagedSetupPath(setupPath, goos, token string) string {
+	path := setupPath + "." + token + ".verified"
+	if goos == "windows" {
+		path += ".exe"
+	}
+	return path
 }
