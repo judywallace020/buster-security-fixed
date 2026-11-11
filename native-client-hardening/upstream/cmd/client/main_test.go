@@ -49,8 +49,8 @@ func TestValidateInputMessageRejectsNil(t *testing.T) {
 }
 
 func TestStagedSetupPathUsesExecutableExtensionOnWindows(t *testing.T) {
-	got := stagedSetupPath(`C:\\Users\\tester\\buster-client-setup.exe`, "windows", "token")
-	want := `C:\\Users\\tester\\buster-client-setup.exe.token.verified.exe`
+	got := stagedSetupPath(`C:\Users\tester\buster-client-setup.exe`, "windows", "token")
+	want := `C:\Users\tester\buster-client-setup.exe.token.verified.exe`
 	if got != want {
 		t.Fatalf("stagedSetupPath() = %q, want %q", got, want)
 	}
