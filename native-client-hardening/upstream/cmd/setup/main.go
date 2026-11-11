@@ -418,7 +418,9 @@ func requestGuard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		host, _, err := net.SplitHostPort(req.RemoteAddr)
 		ip := net.ParseIP(host)
-		if req.Host != expectedHost || ip == nil || !ip.IsLoopback() {
+		origin := req.Header.Get("Origin")
+		if req.Host != expectedHost || ip == nil || !ip.IsLoopback() ||
+			(origin != "" && !validRequestOrigin(origin, expectedHost)) {
 			http.Error(res, "forbidden", http.StatusForbidden)
 			return
 		}
