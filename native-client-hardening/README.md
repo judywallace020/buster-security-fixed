@@ -43,3 +43,24 @@ security-fixed until integration and platform tests pass.
 
 Upstream project: https://github.com/dessant/buster-client
 License: GPL-3.0-only; retain the upstream LICENSE and attribution when integrating.
+
+
+## Upstream source import and first integration pass
+
+The upstream `dessant/buster-client` source files and GPL-3.0 license have been copied under `upstream/` for a reviewable integration target. This is a source snapshot, not a built or signed release.
+
+Integrated in the upstream client source:
+- The updater requests the exact GitHub release metadata for the requested version, requires the expected asset's published SHA-256 digest, then downloads to a new staging path with bounded size and redirect validation before executing the verified setup binary.
+- Client and setup logs now use the private per-user logger helper. Key presses, released keys, tapped keys, and typed text are no longer written to logs.
+- Setup session tokens now use cryptographic random bytes, propagate token-generation failures, and compare in constant time.
+- Setup HTTP requests are restricted to the exact loopback Host and a loopback peer address.
+- Setup install requests validate supported browser/target identifiers, validate Chrome/Firefox extension identifier formats, and compare submitted install paths against paths recomputed for the current user.
+
+## Not yet complete or verified
+
+- Origin/CSRF policy still needs browser compatibility tests; the loopback Host/peer guard is not a substitute for a fully tested Origin policy.
+- Existing install directories and their parent components still need explicit symlink/reparse-point hardening.
+- Input wrappers still discard RobotGo errors; command input validation and bounds need to be added.
+- Setup executable embedding/build generation and Windows/macOS builds have not yet been validated.
+- CI now includes helper tests and a Linux native-client build matrix; the latest workflow result is pending.
+- Do not distribute the source snapshot as a finished native-client installer until CI and platform integration tests pass.
