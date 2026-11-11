@@ -142,7 +142,7 @@ func isWithinBase(path, base string) bool {
 		return false
 	}
 	rel, err := filepath.Rel(baseAbs, pathAbs)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 		return false
 	}
 	return true
