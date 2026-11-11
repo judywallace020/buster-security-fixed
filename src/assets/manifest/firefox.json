@@ -32,7 +32,8 @@
     "https://huggingface.co/*",
     "https://*.huggingface.co/*",
     "https://cdn-lfs.huggingface.co/*",
-    "https://*.xethub.hf.co/*"
+    "https://*.xethub.hf.co/*",
+    "http://127.0.0.1/*"
   ],
   "content_security_policy": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src * data:; connect-src *; object-src 'none'; frame-ancestors http://127.0.0.1:*;",
   "icons": {
