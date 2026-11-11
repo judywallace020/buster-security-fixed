@@ -64,3 +64,5 @@ Integrated in the upstream client source:
 - Setup executable embedding/build generation and Windows/macOS builds have not yet been validated.
 - CI now runs helper tests/vet plus native-client tests/vet/build on Go 1.13.15 and stable; the latest workflow run is pending.
 - Do not distribute the source snapshot as a finished native-client installer until CI and platform integration tests pass.
+
+- Fixed the native input delay helper: it now samples the intended half-open interval `[min, max)`, validates ranges, and propagates cryptographic entropy failures rather than ignoring them. Added deterministic tests for bounds and entropy errors. Keyboard typing/tapping now propagate delay failures; tap attempts key release if its delay fails.
