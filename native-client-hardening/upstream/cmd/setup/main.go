@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"mime"
 	"net"
 	"net/http"
 	"os"
@@ -421,13 +422,28 @@ func closeHandler(res http.ResponseWriter, req *http.Request) {
 
 func requestGuard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		res.Header().Set("Cache-Control", "no-store")
+		res.Header().Set("X-Content-Type-Options", "nosniff")
+		res.Header().Set("Referrer-Policy", "no-referrer")
+
 		host, _, err := net.SplitHostPort(req.RemoteAddr)
 		ip := net.ParseIP(host)
 		origin := req.Header.Get("Origin")
 		if req.Host != expectedHost || ip == nil || !ip.IsLoopback() ||
-			!validRequestOriginForMethod(req.Method, origin, expectedHost) {
+			!validRequestOriginForMethod(req.Method, origin, expectedHost) ||
+			(req.Method != http.MethodGet && req.Method != http.MethodPost) {
 			http.Error(res, "forbidden", http.StatusForbidden)
 			return
+		}
+
+		if req.Method == http.MethodPost {
+			mediaType, _, parseErr := mime.ParseMediaType(req.Header.Get("Content-Type"))
+			if parseErr != nil || mediaType != "application/x-www-form-urlencoded" ||
+				req.ContentLength > 16*1024 {
+				http.Error(res, "invalid setup request", http.StatusBadRequest)
+				return
+			}
+			req.Body = http.MaxBytesReader(res, req.Body, 16*1024)
 		}
 		next.ServeHTTP(res, req)
 	})
