@@ -235,3 +235,6 @@ The upstream code is retained with its original GPL-3.0 license and attribution.
 **Upstream source provenance:** the native-client snapshot under `native-client-hardening/upstream/` was copied from `dessant/buster-client` branch `master`, commit `d4a7880c8eb5196110052d0bdad8c8dd003a8ad8`.
 
 - Fixed the native input delay helper: it now samples the intended half-open interval `[min, max)`, validates ranges, and propagates cryptographic entropy failures rather than ignoring them. Added deterministic tests for bounds and entropy errors. Keyboard typing/tapping now propagate delay failures; tap attempts key release if its delay fails.
+
+
+- Setup API mutation requests now require a non-empty, non-`null` trusted `Origin`; only top-level GET navigation may omit Origin. Regression tests cover trusted Chrome/Firefox origins, hostile/missing/null origins, install-path containment, symlink components, and symlink manifest rejection. This is defense in depth alongside the session token, exact Host check, and loopback peer check; browser runtime compatibility and Windows junction/reparse-point validation remain outstanding.
