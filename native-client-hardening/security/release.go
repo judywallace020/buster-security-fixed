@@ -16,7 +16,7 @@ import (
 
 const releaseMetadataURL = "https://api.github.com/repos/dessant/buster-client/releases/tags/v"
 
-var releaseVersionPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$`)
+var releaseVersionPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$`)
 
 type githubRelease struct {
 	TagName string `json:"tag_name"`
