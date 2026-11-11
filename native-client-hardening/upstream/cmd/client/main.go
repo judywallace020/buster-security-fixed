@@ -67,7 +67,14 @@ func installClient(version string) error {
 		return errors.New("cannot get executable path")
 	}
 	setupPath := filepath.Join(filepath.Dir(execPath), utils.GetExecName("buster-client-setup"))
-	stagedPath := setupPath + ".verified"
+	stageToken, err := security.NewSessionToken()
+	if err != nil {
+		return errors.New("cannot create a unique updater staging name")
+	}
+	stagedPath := setupPath + "." + stageToken + ".verified"
+	if runtime.GOOS == "windows" {
+		stagedPath += ".exe"
+	}
 
 	metadataClient := security.NewGitHubMetadataClient()
 	assetURL, digest, err := security.ReleaseAssetSHA256(metadataClient, version, assetName)
