@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"github.com/gofrs/uuid"
+	"buster-client-hardening/security"
 )
 
 func stringInSlice(s []string, e string) bool {
@@ -28,9 +28,8 @@ func pathExists(path string) (bool, error) {
 	return true, err
 }
 
-func newToken() string {
-	token, _ := uuid.NewV4()
-	return token.String()
+func newToken() (string, error) {
+	return security.NewSessionToken()
 }
 
 func restoreAsset(path, name string) error {
