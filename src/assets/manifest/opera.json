@@ -19,9 +19,9 @@
   ],
   "host_permissions": [
     "https://google.com/*",
-    "https://*.google.com/*",
+    "https://www.google.com/*",
     "https://recaptcha.net/*",
-    "https://*.recaptcha.net/*",
+    "https://www.recaptcha.net/*",
     "https://api.wit.ai/*",
     "https://speech.googleapis.com/*",
     "https://iam.cloud.ibm.com/*",
@@ -114,9 +114,9 @@
       ],
       "matches": [
         "https://google.com/*",
-        "https://*.google.com/*",
+        "https://www.google.com/*",
         "https://recaptcha.net/*",
-        "https://*.recaptcha.net/*"
+        "https://www.recaptcha.net/*"
       ],
       "use_dynamic_url": true
     }
