@@ -898,11 +898,12 @@ function isRecaptchaUrl(value) {
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
-    const allowedHost =
-      host === 'google.com' ||
-      host.endsWith('.google.com') ||
-      host === 'recaptcha.net' ||
-      host.endsWith('.recaptcha.net');
+    const allowedHost = [
+      'google.com',
+      'www.google.com',
+      'recaptcha.net',
+      'www.recaptcha.net'
+    ].includes(host);
 
     return (
       url.protocol === 'https:' &&
