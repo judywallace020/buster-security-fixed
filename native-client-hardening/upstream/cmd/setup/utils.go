@@ -111,7 +111,7 @@ var firefoxExtensionIDPattern = regexp.MustCompile(`^[A-Za-z0-9._@{}+-]{1,128}$`
 
 func validBrowserTarget(browser, targetEnv string) bool {
 	validBrowser := map[string]bool{
-		"chrome": true, "edge": true, "firefox": true, "opera": true,
+		"chrome": true, "google chrome": true, "edge": true, "firefox": true, "opera": true,
 		"chromium": true, "microsoft edge": true, "waterfox": true,
 		"icedragon": true, "cliqz": true,
 	}
