@@ -3,6 +3,10 @@ name: Native Client Security Helpers
 permissions:
   contents: read
 
+concurrency:
+  group: native-client-security-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   pull_request:
     paths:
