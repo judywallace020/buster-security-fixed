@@ -115,10 +115,8 @@ func processMessage(msg *message, rsp *response) error {
 	} else if msg.Command == "releaseKey" {
 		input.ReleaseKey(msg.Data)
 	} else if msg.Command == "tapKey" {
-		log.Printf("Data: %s", msg.Data)
 		input.TapKey(msg.Data)
 	} else if msg.Command == "typeText" {
-		log.Printf("Data: %s", msg.Data)
 		input.TypeText(msg.Data)
 	} else if msg.Command == "moveMouse" {
 		log.Printf("X: %d, Y: %d", msg.X, msg.Y)
