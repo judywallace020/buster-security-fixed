@@ -164,6 +164,9 @@ func getLocation(browser, targetEnv string) (map[string]string, error) {
 }
 
 func install(manifestDir, appDir, browser, targetEnv, extension string) error {
+	if err := ensureNoSymlinkComponents(appDir); err != nil {
+		return err
+	}
 	execName := utils.GetExecName("buster-client")
 	execPath := filepath.Join(appDir, execName)
 	if err := restoreAsset(execPath, execName); err != nil {
@@ -179,6 +182,11 @@ func install(manifestDir, appDir, browser, targetEnv, extension string) error {
 			manifestSubDir = "chrome"
 		}
 		manifestDir = filepath.Join(appDir, "manifest", manifestSubDir)
+	}
+	if manifestDir != "" {
+		if err := ensureNoSymlinkComponents(manifestDir); err != nil {
+			return err
+		}
 	}
 
 	manifestPath := filepath.Join(manifestDir, "org.buster.client.json")
