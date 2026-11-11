@@ -113,7 +113,6 @@ func processMessage(msg *message, rsp *response) error {
 	if msg.Command == "pressKey" {
 		input.PressKey(msg.Data)
 	} else if msg.Command == "releaseKey" {
-		log.Printf("Data: %s", msg.Data)
 		input.ReleaseKey(msg.Data)
 	} else if msg.Command == "tapKey" {
 		log.Printf("Data: %s", msg.Data)
@@ -136,7 +135,13 @@ func processMessage(msg *message, rsp *response) error {
 }
 
 func main() {
-	utils.InitLogger("buster-client-log.txt")
+	_, logFile, logErr := security.NewPrivateLogger("buster-client-log.txt")
+	if logErr != nil {
+		return
+	}
+	defer logFile.Close()
+	log.SetOutput(logFile)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.LUTC)
 	log.Printf("Starting client (version: %s)", buildVersion)
 
 	go func() {
