@@ -130,20 +130,21 @@ func validExtensionIdentifier(targetEnv, extension string) bool {
 	return chromeExtensionOriginPattern.MatchString(extension)
 }
 
-func sameExpectedPath(supplied, expected string) bool {
-	if supplied == "" || expected == "" {
-		return supplied == expected
+func isWithinBase(path, base string) bool {
+	if path == "" || base == "" || !filepath.IsAbs(path) {
+		return false
 	}
-	suppliedAbs, err := filepath.Abs(filepath.Clean(supplied))
+	pathAbs, err := filepath.Abs(filepath.Clean(path))
 	if err != nil {
 		return false
 	}
-	expectedAbs, err := filepath.Abs(filepath.Clean(expected))
+	baseAbs, err := filepath.Abs(filepath.Clean(base))
 	if err != nil {
 		return false
 	}
-	if runtime.GOOS == "windows" {
-		return strings.EqualFold(suppliedAbs, expectedAbs)
+	rel, err := filepath.Rel(baseAbs, pathAbs)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return false
 	}
-	return suppliedAbs == expectedAbs
+	return true
 }
