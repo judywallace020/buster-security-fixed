@@ -148,6 +148,19 @@ func isWithinBase(path, base string) bool {
 	return true
 }
 
+// validRequestOriginForMethod requires an Origin header on state-changing
+// requests. Top-level GET navigation may omit Origin, but every setup API
+// mutation is a browser fetch and must identify its trusted extension origin.
+func validRequestOriginForMethod(method, origin, expectedHost string) bool {
+	if method == "GET" && origin == "" {
+		return true
+	}
+	if origin == "" || origin == "null" {
+		return false
+	}
+	return validRequestOrigin(origin, expectedHost)
+}
+
 func validRequestOrigin(origin, expectedHost string) bool {
 	if origin == "http://"+expectedHost {
 		return true
