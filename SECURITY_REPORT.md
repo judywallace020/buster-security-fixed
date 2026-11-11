@@ -83,6 +83,28 @@ npm run build:prod:zip:chrome
 
 Run these in a clean checkout and record tool versions, output, and any exceptions. A successful build alone does not establish that the security findings are remediated.
 
+## Partial remediation applied in branch `security/hardening`
+
+The following limited changes have now been applied to the Chrome, Edge, Opera, and Firefox manifests:
+
+- Replaced the broad `<all_urls>` host permission with an explicit list for reCAPTCHA, the supported speech APIs, and Hugging Face model delivery.
+- For Manifest V3 builds (Chrome, Edge, Opera), scoped the setup page web-accessible resource to the local setup origin and scoped reset/style resources to reCAPTCHA origins.
+- Kept Firefox Manifest V2's web-accessible-resource declaration in its required legacy form; this does not provide the same per-origin scoping as the Manifest V3 declarations.
+
+### Validation of this partial change
+
+- Parsed all four edited manifest files as JSON successfully.
+- Confirmed none of the four manifests retains the `<all_urls>` host permission.
+- Confirmed the three Manifest V3 manifests have split, origin-scoped web-accessible-resource entries.
+
+### Compatibility caveats and remaining work
+
+- Custom, non-standard IBM speech endpoints may no longer be reachable unless their host is added through a deliberate permission flow. Standard Watson Speech-to-Text and IAM endpoints remain listed.
+- The Content Security Policy still contains broad directives; it has not been tightened because the complete runtime destination inventory and compatibility tests have not yet been completed.
+- Firefox Manifest V2 web-accessible resources remain broadly exposed under the legacy manifest format.
+- Background message authorization/schema validation, audio resource limits, credential handling, native-client security review, dependency scanning, browser builds, and runtime tests remain outstanding.
+- No full build or end-to-end test has been run. Do not treat this branch as production-ready.
+
 ## Attribution
 
 Buster is originally developed by [dessant](https://github.com/dessant). This repository is a derivative review workspace. Preserve upstream notices and comply with GPL-3.0 when distributing modified copies.
