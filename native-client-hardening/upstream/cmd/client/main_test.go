@@ -47,3 +47,19 @@ func TestValidateInputMessageRejectsNil(t *testing.T) {
 		t.Fatal("expected nil message to be rejected")
 	}
 }
+
+func TestStagedSetupPathUsesExecutableExtensionOnWindows(t *testing.T) {
+	got := stagedSetupPath(`C:\\Users\\tester\\buster-client-setup.exe`, "windows", "token")
+	want := `C:\\Users\\tester\\buster-client-setup.exe.token.verified.exe`
+	if got != want {
+		t.Fatalf("stagedSetupPath() = %q, want %q", got, want)
+	}
+}
+
+func TestStagedSetupPathForUnix(t *testing.T) {
+	got := stagedSetupPath("/opt/buster/buster-client-setup", "linux", "token")
+	want := "/opt/buster/buster-client-setup.token.verified"
+	if got != want {
+		t.Fatalf("stagedSetupPath() = %q, want %q", got, want)
+	}
+}
