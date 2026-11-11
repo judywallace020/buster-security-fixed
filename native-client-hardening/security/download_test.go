@@ -51,7 +51,7 @@ func downloadTestClient(status int, payload string) *http.Client {
 			StatusCode: status,
 			Status:     http.StatusText(status),
 			Header:     make(http.Header),
-			Body:       io.NopCloser(strings.NewReader(payload)),
+			Body:       testReadCloser{strings.NewReader(payload)},
 			ContentLength: int64(len(payload)),
 			Request:    r,
 		}, nil
@@ -112,3 +112,9 @@ func TestDownloadVerifiedRejectsOversizedAndNonSuccessResponses(t *testing.T) {
 		t.Fatal("non-200 response must be rejected")
 	}
 }
+
+type testReadCloser struct {
+	io.Reader
+}
+
+func (testReadCloser) Close() error { return nil }
