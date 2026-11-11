@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"buster-client-hardening/security"
@@ -60,6 +61,13 @@ func ensureNoSymlinkComponents(path string) error {
 		}
 		if info.Mode()&os.ModeSymlink != 0 {
 			return errors.New("installation path contains a symbolic link")
+		}
+		reparse, reparseErr := isReparsePoint(current)
+		if reparseErr != nil {
+			return reparseErr
+		}
+		if reparse {
+			return errors.New("installation path contains a Windows reparse point")
 		}
 		if !info.IsDir() {
 			return errors.New("installation path component is not a directory")
@@ -166,4 +174,22 @@ func validRequestOrigin(origin, expectedHost string) bool {
 		return true
 	}
 	return chromeOriginPattern.MatchString(origin) || firefoxOriginPattern.MatchString(origin)
+}
+
+func sameInstallPath(path, expected string) bool {
+	if path == "" || expected == "" || !filepath.IsAbs(path) || !filepath.IsAbs(expected) {
+		return false
+	}
+	actualAbs, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return false
+	}
+	expectedAbs, err := filepath.Abs(filepath.Clean(expected))
+	if err != nil {
+		return false
+	}
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(actualAbs, expectedAbs)
+	}
+	return actualAbs == expectedAbs
 }
