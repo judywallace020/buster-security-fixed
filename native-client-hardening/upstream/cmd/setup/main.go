@@ -295,7 +295,7 @@ func writeError(res http.ResponseWriter, error error) {
 func initHandler(res http.ResponseWriter, req *http.Request) {
 	if req.Method == "GET" {
 		if isValidSession(req.FormValue("session")) {
-			res.Header().Set("Content-Security-Policy", "frame-ancestors 'none';")
+			res.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none';")
 			res.Header().Set("Content-Type", "text/html; charset=utf-8")
 			log.Println("Loading setup page")
 			fmt.Fprint(res, initResponse)
