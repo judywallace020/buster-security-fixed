@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/dessant/nativemessaging"
 
+	"buster-client-hardening/security"
 	"buster-client/pkg/input"
 	"buster-client/utils"
 )
@@ -51,9 +53,9 @@ func installClient(version string) error {
 	if goos == "darwin" {
 		goos = "macos"
 	}
-	url := fmt.Sprintf("https://github.com/dessant/buster-client/releases/download/v%s/buster-client-setup-v%s-%s-%s", version, version, goos, runtime.GOARCH)
+	assetName := fmt.Sprintf("buster-client-setup-v%s-%s-%s", version, goos, runtime.GOARCH)
 	if goos == "windows" {
-		url += ".exe"
+		assetName += ".exe"
 	}
 
 	execPath, err := os.Executable()
@@ -62,19 +64,28 @@ func installClient(version string) error {
 		return errors.New("cannot get executable path")
 	}
 	setupPath := filepath.Join(filepath.Dir(execPath), utils.GetExecName("buster-client-setup"))
+	stagedPath := setupPath + ".verified"
 
-	if err := downloadFile(setupPath, url); err != nil {
-		log.Println(err)
-		return errors.New("cannot download setup")
-	}
-
-	setupOutput, err := exec.Command(setupPath, "--update").CombinedOutput()
+	metadataClient := security.NewGitHubMetadataClient()
+	assetURL, digest, err := security.ReleaseAssetSHA256(metadataClient, version, assetName)
 	if err != nil {
-		log.Println(err)
-		return errors.New("cannot run setup")
+		log.Printf("Updater metadata validation failed: %v", err)
+		return errors.New("cannot verify update release metadata")
 	}
 
-	os.Remove(setupPath)
+	downloadCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	if err := security.DownloadVerified(downloadCtx, security.NewReleaseHTTPClient(), assetURL, digest, stagedPath, security.DefaultMaxDownloadBytes); err != nil {
+		log.Printf("Verified updater download failed: %v", err)
+		return errors.New("cannot download and verify setup")
+	}
+	defer os.Remove(stagedPath)
+
+	setupOutput, err := exec.Command(stagedPath, "--update").CombinedOutput()
+	if err != nil {
+		log.Printf("Verified setup execution failed: %v", err)
+		return errors.New("cannot run verified setup")
+	}
 
 	errMessage := string(setupOutput)
 	if errMessage != "" {
@@ -100,7 +111,6 @@ func processMessage(msg *message, rsp *response) error {
 	log.Printf("Command: %s", msg.Command)
 
 	if msg.Command == "pressKey" {
-		log.Printf("Data: %s", msg.Data)
 		input.PressKey(msg.Data)
 	} else if msg.Command == "releaseKey" {
 		log.Printf("Data: %s", msg.Data)
