@@ -60,6 +60,12 @@ func DownloadVerified(ctx context.Context, client *http.Client, sourceURL, expec
 		return errors.New("download exceeds size limit")
 	}
 
+	if _, err := os.Lstat(destination); err == nil {
+		return errors.New("destination already exists; stage the verified update at a new path")
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
 	dir := filepath.Dir(destination)
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
