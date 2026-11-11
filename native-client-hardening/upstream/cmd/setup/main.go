@@ -311,11 +311,19 @@ func locationHandler(res http.ResponseWriter, req *http.Request) {
 		if isValidSession(req.FormValue("session")) {
 			browser := req.FormValue("browser")
 			targetEnv := req.FormValue("targetEnv")
+			if !validBrowserTarget(browser, targetEnv) {
+				writeError(res, errors.New("unsupported browser or target environment"))
+				return
+			}
 
 			log.Println("Getting install location")
 			location, err := getLocation(browser, targetEnv)
 			if err != nil {
 				writeError(res, err)
+				return
+			}
+			if location["appDir"] == "" || (runtime.GOOS != "windows" && location["manifestDir"] == "") {
+				writeError(res, errors.New("unsupported browser installation location"))
 				return
 			}
 			response, _ := json.Marshal(location)
