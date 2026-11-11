@@ -112,6 +112,7 @@ func installCleanup() error {
 var inputKeyPattern = regexp.MustCompile(`^[A-Za-z0-9_+.-]{1,64}$`)
 
 const maxNativeTextBytes = 4096
+const minNativeCoordinate = -32768
 const maxNativeCoordinate = 32767
 
 func validateInputMessage(msg *message) error {
@@ -128,8 +129,8 @@ func validateInputMessage(msg *message) error {
 			return errors.New("text input is invalid or exceeds 4096 bytes")
 		}
 	case "moveMouse":
-		if msg.X < -maxNativeCoordinate || msg.X > maxNativeCoordinate ||
-			msg.Y < -maxNativeCoordinate || msg.Y > maxNativeCoordinate {
+		if msg.X < minNativeCoordinate || msg.X > maxNativeCoordinate ||
+			msg.Y < minNativeCoordinate || msg.Y > maxNativeCoordinate {
 			return errors.New("mouse coordinates are out of bounds")
 		}
 	case "clickMouse", "ping":
