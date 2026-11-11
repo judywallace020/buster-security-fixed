@@ -6,7 +6,7 @@ and does not replace the upstream native client yet.
 
 ## Helpers
 
-- `security.DownloadVerified`: bounded HTTPS download to a temporary file, SHA-256
+- `security.ReleaseAssetSHA256`: retrieves the exact asset URL and SHA-256 digest from GitHub's HTTPS release metadata API, validates the release tag, asset name, URL origin, and digest format, and fails closed when GitHub does not publish a digest. Uses a bounded response size and Go 1.13-compatible APIs.\n- `security.DownloadVerified`: bounded HTTPS download to a temporary file, SHA-256
   verification against a digest supplied by trusted release metadata, and atomic
   replacement. The caller must obtain the digest from authenticated release metadata
   and must fail closed if no digest is available. Never trust a checksum downloaded
